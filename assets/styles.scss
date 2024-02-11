@@ -1,0 +1,20 @@
+---
+title: false
+---
+
+@import "garth";
+
+/* Style for the container with the class 'icon' */
+.icon {
+    display: inline-block; /* Display the icon containers inline-block for proper alignment */
+    margin: 0 10px; /* Add some horizontal space between icons */
+    /* Add any additional styling for the icon container here */
+}
+
+/* Style specifically for the <img> elements within the .icon class */
+.icon img {
+    width: 25px; /* Set a fixed width for the icons */
+    height: auto; /* Maintain the aspect ratio */
+    vertical-align: middle; /* Align icons to the middle of the text line */
+    /* Add any additional styling for the image icons here */
+}
