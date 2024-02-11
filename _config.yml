@@ -33,9 +33,9 @@ collections:
   posts:
     title: Blog # Needed for Siteleaf
     output: true
-    description: "" # The post list page content
+    description: "Just sharing my thoughts." # The post list page content
 
-logo: /assets/logo.svg
+logo: /assets/logo.png
 
 # Build settings
 # theme: minima
