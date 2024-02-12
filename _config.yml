@@ -34,6 +34,9 @@ collections:
     title: Blog # Needed for Siteleaf
     output: true
     description: "Just sharing my thoughts." # The post list page content
+  projects:
+    output: true
+    permalink: /projects/:path/
 
 logo: /assets/logo.png
 

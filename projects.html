@@ -1,0 +1,17 @@
+---
+layout: page
+title: Projects
+permalink: /projects/
+---
+<ul class="list  list--posts">
+    {% for project in site.projects %}
+      <li class="item  item--post">
+        <article class="article  article--post  typeset">
+
+          <h2><a href="{{ project.github_url }}">{{ project.title }}</a></h2>
+          {{ project.description | markdownify | truncatewords: 60 }}
+
+        </article>
+      </li>
+    {% endfor %}
+  </ul>
