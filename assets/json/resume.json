@@ -30,12 +30,15 @@
       "startDate": "2024-05-01",
       "endDate": "2024-09-30",
       "summary": "Reinforcement Learning for Intelligent Diagnostics",
-      "highlights": ["Evaluated the potential of reinforcement learning algorithms in intelligent diagnostics", "Conducted experiments to apply reinforcement learning for root cause analysis"]
+      "highlights": [
+        "Evaluated the potential of reinforcement learning algorithms in intelligent diagnostics", 
+        "Conducted experiments to apply reinforcement learning for root cause analysis"
+      ]
     },
     {
       "name": "usd AG",
       "position": "Software Engineer Working Student",
-      "url": "",
+      "url": "https://www.usd.de/",
       "startDate": "2023-01-01",
       "endDate": "2024-04-01",
       "summary": "Backend development and process automation",
