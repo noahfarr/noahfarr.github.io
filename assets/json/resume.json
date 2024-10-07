@@ -30,10 +30,7 @@
       "startDate": "2024-05-01",
       "endDate": "2024-09-30",
       "summary": "Reinforcement Learning for Intelligent Diagnostics",
-      "highlights": [
-        "Evaluate the potential of reinforcement learning algorithms in intelligent diagnostics",
-        "Conduct experiments to apply reinforcement learning for root cause analysis"
-      ]
+      "highlights": ["Evaluated the potential of reinforcement learning algorithms in intelligent diagnostics", "Conducted experiments to apply reinforcement learning for root cause analysis"]
     },
     {
       "name": "usd AG",
@@ -42,10 +39,7 @@
       "startDate": "2023-01-01",
       "endDate": "2024-04-01",
       "summary": "Backend development and process automation",
-      "highlights": [
-        "Developed internal tools and services",
-        "Automated various processes"
-      ]
+      "highlights": ["Developed internal tools and services", "Automated various processes"]
     },
     {
       "name": "C24 Bank",
@@ -54,10 +48,7 @@
       "startDate": "2021-10-01",
       "endDate": "2022-12-01",
       "summary": "Project management and testing",
-      "highlights": [
-        "Tested new features for acceptance and managed weekly releases",
-        "Independently developed concepts and functions"
-      ]
+      "highlights": ["Tested new features for acceptance and managed weekly releases", "Independently developed concepts and functions"]
     }
   ],
   "education": [
@@ -70,12 +61,7 @@
       "startDate": "2020-10-01",
       "endDate": "2024-09-01",
       "score": "1.7",
-      "courses": [
-        "Reinforcement Learning",
-        "Statistical Machine Learning",
-        "Robot Learning",
-        "Computational Engineering and Robotics"
-      ]
+      "courses": ["Reinforcement Learning", "Statistical Machine Learning", "Robot Learning", "Computational Engineering and Robotics"]
     },
     {
       "institution": "Wolfgang-Ernst-Gymnasium",
@@ -95,10 +81,7 @@
       "startDate": "2023-04-01",
       "endDate": "2023-09-01",
       "url": "",
-      "highlights": [
-        "Conducted a literature review on reinforcement learning issues",
-        "Validated novel approach for robotic manipulation tasks"
-      ]
+      "highlights": ["Conducted a literature review on reinforcement learning issues", "Validated novel approach for robotic manipulation tasks"]
     },
     {
       "name": "On Designing Reward Functions for Robotic Tasks",
@@ -106,40 +89,19 @@
       "startDate": "2024-04-01",
       "endDate": "2024-09-01",
       "url": "",
-      "highlights": [
-        "Developed and tested custom locomotion and manipulation tasks"
-      ]
+      "highlights": ["Developed and tested custom locomotion and manipulation tasks"]
     }
   ],
   "skills": [
     {
       "name": "Programming",
       "level": "",
-      "keywords": [
-        "Python",
-        "Django",
-        "PyTorch",
-        "Numpy",
-        "Jax",
-        "Gymnasium",
-        "Stable Baselines 3",
-        "MuJoCo",
-        "Isaac Sim"
-      ]
+      "keywords": ["Python", "Django", "PyTorch", "Numpy", "Jax", "Gymnasium", "Stable Baselines 3", "MuJoCo", "Isaac Sim"]
     },
     {
       "name": "Software",
       "level": "",
-      "keywords": [
-        "Linux",
-        "Git",
-        "Docker",
-        "VS Code",
-        "Jira",
-        "Asana",
-        "MS Office",
-        "Redis"
-      ]
+      "keywords": ["Linux", "Git", "Docker", "VS Code", "Jira", "Asana", "MS Office", "Redis"]
     }
   ],
   "languages": [
