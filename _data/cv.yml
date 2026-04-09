@@ -1,71 +1,68 @@
-- title: General Information
-  type: map
-  contents:
-    - name: Noah Farr
-    - Date of Birth: Not provided
-    - Languages: German (Native), English (Fluent)
-
 - title: Education
   type: time_table
   contents:
+    - title: Master of Science in Artificial Intelligence and Machine Learning
+      institution: TU Darmstadt, Darmstadt, Germany
+      year: October 2024 - September 2026
+      description:
+        - GPA: 1.12
     - title: Bachelor of Science in Computer Science
       institution: TU Darmstadt, Darmstadt, Germany
       year: October 2020 - September 2024
       description:
-        - GPA: 1.7
-        - Relevant Coursework: Reinforcement Learning, Statistical Machine Learning, Robot Learning, Computational Engineering, and Robotics.
-    - title: Abitur
-      institution: Wolfgang-Ernst-Gymnasium, Büdingen, Germany
-      year: August 2012 - May 2020
-      description:
-        - GPA: 1.8
+        - GPA: 1.68
 
 - title: Experience
   type: time_table
   contents:
-    - title: Reinforcement Learning for Intelligent Diagnostics Research Internship
+    - title: Visiting Researcher
+      institution: Softmax, San Francisco, USA
+      year: January 2026 - February 2026
+      description:
+        - Trained MARL agents for the Alignment League Benchmark, a cooperative AI evaluation suite measuring organic alignment through goal inference, intent legibility, and dynamic coordination.
+    - title: Student Research Assistant
+      institution: PEARL, TU Darmstadt, Darmstadt, Germany
+      year: October 2024 - Present
+      description:
+        - Built a high-fidelity digital twin of a robotic kitchen environment in Isaac Sim, enabling sim-to-real transfer experiments.
+        - Executed robotic manipulation experiments in Isaac Lab using the digital twin.
+    - title: Research Intern
       institution: TNO-ESI, Eindhoven, Netherlands
       year: May 2024 - September 2024
       description:
-        - Evaluated the potential of reinforcement learning algorithms in intelligent diagnostics.
-        - Conducted experiments applying RL for root cause analysis.
-    - title: Software Engineer Working Student
-      institution: usd AG, Neu-Isenburg, Germany
-      year: January 2023 - April 2024
-      description:
-        - Backend development of internal tools and services.
-        - Automation of processes.
-    - title: Project Manager Working Student
-      institution: C24 Bank, Mainz, Germany
-      year: October 2021 - December 2022
-      description:
-        - Regular testing for new feature acceptance and weekly releases.
-        - Independent development of concepts and functions.
+        - Developed an RL-based diagnostic pipeline for high-tech systems, outperforming the baseline by 10% on root cause identification.
 
 - title: Projects
   type: time_table
   contents:
-    - title: Reinforcement Learning for Contact-Rich Manipulation Robot Learning Lab
-      institution: TU Darmstadt, Darmstadt, Germany
-      year: April 2023 - September 2023
+    - title: Memorax
+      institution: <a href="https://github.com/memory-rl/memorax">github.com/memory-rl/memorax</a>
+      year: January 2026
       description:
-        - Conducted literature review on reinforcement learning challenges.
-        - Developed and validated a novel approach using IsaacSim and MuJoCo.
-    - title: On Designing Reward Functions for Robotic Tasks (Bachelor Thesis)
-      institution: TU Darmstadt, Darmstadt, Germany
-      year: April 2024 - September 2024
+        - Built Memorax, a JAX framework unifying 6 RL algorithms with 11 memory architectures (LSTM, Mamba, Transformers, and more) across 11 environments.
+    - title: RLX
+      institution: <a href="https://github.com/noahfarr/rlx">github.com/noahfarr/rlx</a>
+      year: February 2024
       description:
-        - Developed a novel reward function design approach.
-        - Validated approach using custom-build tasks with MuJoCo.
+        - Built and open-sourced the first RL library for Apple's MLX framework, reaching 248 stars and 20 forks on GitHub.
+
+- title: Scholarships and Awards
+  type: time_table
+  contents:
+    - title: Research-Oriented Master's Scholarship
+      institution: Zuse School ELIZA, Darmstadt, Germany
+      year: April 2025 - Present
+
+- title: Volunteer Experience
+  type: time_table
+  contents:
+    - title: Founding Member
+      institution: TU Darmstadt Robotics Engineering e.V., Darmstadt, Germany
+      year: October 2024 - Present
 
 - title: Skills
   type: map
   contents:
-    - Programming: Python, Django, PyTorch, Numpy, Jax, Gymnasium, Stable Baselines 3, MuJoCo, Isaac Sim, SQL
-    - Software: Linux, Git, Docker, VS Code, Jira, Asana, MS Office, Redis
+    - ML/RL: PyTorch, JAX, Stable Baselines 3, Gymnasium, MuJoCo, Isaac Sim, Isaac Lab, MLX
+    - Engineering: Python, Linux, Git, Docker, SQL
     - Languages: German (Native), English (Fluent)
-
-- title: Other Interests
-  type: list
-  contents:
-    - Hobbies: Not provided
