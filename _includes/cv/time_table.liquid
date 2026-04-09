@@ -1,16 +1,25 @@
 <ul class="card-text font-weight-light list-group list-group-flush">
   {% for content in entry.contents %}
     <li class="list-group-item">
-      <div class="row">
+      <div class="row align-items-center">
         {% if content.year %}
-          <div class="col-xs-2 cl-sm-2 col-md-2 text-center" style="width: 75px">
+          <div class="col-xs-2 cl-sm-2 col-md-2 text-center" style="width: 100px">
             <table class="table-cv">
               <tbody>
                 <tr>
                   <td>
-                    <span class="badge font-weight-bold danger-color-dark text-uppercase align-middle" style="min-width: 75px">
-                      {{- content.year -}}
-                    </span>
+                    {% assign year_parts = content.year | split: ' - ' %}
+                    {% if year_parts.size == 2 %}
+                      <span class="badge font-weight-bold danger-color-dark text-uppercase align-middle" style="min-width: 90px; white-space: normal; line-height: 1.6;">
+                        <span style="display: block; color: inherit;">{{- year_parts[0] -}}</span>
+                        <span style="display: block; color: inherit; opacity: 0.6; font-size: 0.7em;">–</span>
+                        <span style="display: block; color: inherit;">{{- year_parts[1] -}}</span>
+                      </span>
+                    {% else %}
+                      <span class="badge font-weight-bold danger-color-dark text-uppercase align-middle" style="min-width: 90px; white-space: normal; line-height: 1.4">
+                        {{- content.year -}}
+                      </span>
+                    {% endif %}
                   </td>
                 </tr>
                 {% if content.location %}

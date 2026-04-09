@@ -1,16 +1,16 @@
 - title: Education
   type: time_table
   contents:
-    - title: Master of Science in Artificial Intelligence and Machine Learning
+    - title: M.Sc. Artificial Intelligence and Machine Learning
       institution: TU Darmstadt, Darmstadt, Germany
-      year: October 2024 - September 2026
+      year: October 2024 - Present
       description:
-        - GPA: 1.12
-    - title: Bachelor of Science in Computer Science
+        - "GPA: 1.12"
+    - title: B.Sc. Computer Science
       institution: TU Darmstadt, Darmstadt, Germany
       year: October 2020 - September 2024
       description:
-        - GPA: 1.68
+        - "GPA: 1.68"
 
 - title: Experience
   type: time_table

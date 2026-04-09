@@ -1,9 +1,7 @@
-github_users:
-  - noahfarr
-
 repo_description_lines_max: 2
 
 github_repos:
   - noahfarr/rlx
+  - memory-rl/memorax
   - noahfarr/crossq
-  - noahfarr/breakout
+  - noahfarr/mcts
