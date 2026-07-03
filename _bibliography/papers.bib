@@ -1,0 +1,17 @@
+---
+---
+
+@inproceedings{farr2026streaming,
+  bibtex_show={true},
+  title={Streaming Reinforcement Learning under Partial Observability with Real-Time Recurrent Learning},
+  author={Farr, Noah and Reddi, Aryaman and D'Eramo, Carlo and Peters, Jan},
+  booktitle={<a href="https://rlinbigworlds.ca/">RL in Big Worlds Workshop</a>, <a href="https://rl-conference.cc/">Reinforcement Learning Conference (RLC)</a>},
+  year={2026},
+  month={May},
+  preview={recurrent-streaming-rl.png},
+  arxiv={2605.24709},
+  abstract={Streaming reinforcement learning has emerged as an online learning paradigm that conforms to the restrictions of natural learning agents that process data incrementally, i.e. with a batch size of 1 and no replay buffer. While streaming RL has recently been shown to scale with deep function approximation with full observability, partially observable settings have remained out of reach. Truncated backpropagation through time collapses to a one-step gradient horizon under the streaming setting, and exact real-time recurrent learning is prohibitively expensive. We close this gap using recurrent trace units, a diagonal recurrent architecture that enables exact RTRL with linear time and memory complexity in the parameter count, and show that they integrate cleanly into existing streaming algorithms across both discrete and continuous control. On a MemoryChain diagnostic with chain lengths from 2 to 128, our method sustains performance where streaming TBPTT(1) baselines using feedforward, GRU, and RTU networks collapse. On five POPGym tasks and on partially observable MuJoCo continuous control, the streaming approach is competitive with batched PPO on POPGym and recovers a substantial fraction of batched performance on masked MuJoCo, despite using no replay buffer or batched updates.},
+  award={Best Paper Award},
+  award_name={Best Paper Award},
+  selected={true}
+}

@@ -10,7 +10,7 @@ profile:
   image_circular: true # crops the image to make it circular
   more_info: >
 
-news: false
+news: true
 selected_papers: false
 social: true # includes social icons at the bottom of the page
 ---
@@ -19,4 +19,4 @@ I am a second-year Master's student in Artificial Intelligence and Machine Learn
 
 ## Research Interests
 
-My research interests lie primarily in reinforcement learning, with a focus on partially observable environments (POMDPs) and multi-agent systems.
+My research interests center on a central question: how do you train a single reinforcement learning agent that can pursue any goal in a complex, open-ended environment, without hand-designed rewards, curricula, or task-specific engineering?

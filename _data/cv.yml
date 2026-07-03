@@ -1,68 +1,76 @@
+- title: General Information
+  type: map
+  contents:
+    - name: Full Name
+      value: Noah Farr
+    - name: Email
+      value: work@noahfarr.com
+    - name: Phone
+      value: +49 151 17722186
+    - name: Languages
+      value: German (Native), English (C1)
+
 - title: Education
   type: time_table
   contents:
     - title: M.Sc. Artificial Intelligence and Machine Learning
       institution: TU Darmstadt, Darmstadt, Germany
-      year: October 2024 - Present
+      year: 2024 - Present
       description:
-        - "GPA: 1.12"
+        - GPA 1.12
     - title: B.Sc. Computer Science
       institution: TU Darmstadt, Darmstadt, Germany
-      year: October 2020 - September 2024
+      year: 2020 - 2024
       description:
-        - "GPA: 1.68"
+        - GPA 1.68
+
+- title: Publications
+  type: time_table
+  contents:
+    - title: Streaming Reinforcement Learning under Partial Observability with Real-Time Recurrent Learning
+      institution: Noah Farr, Aryaman Reddi, Carlo D'Eramo, Jan Peters — <a href="https://rlinbigworlds.ca/">RL in Big Worlds Workshop</a>, <a href="https://rl-conference.cc/">RLC</a>
+      year: 2026
+      description:
+        - Proposed a streaming RL algorithm that learns online from a single stream of experience, without replay buffers or batched updates, under partial observability
+        - Leveraged recurrent trace units for exact real-time recurrent learning (RTRL) at linear time and memory cost, outperforming streaming baselines and matching batched training under tight compute budgets
+
+- title: Honors and Awards
+  type: time_table
+  contents:
+    - year: 2026
+      items:
+        - Best Paper Award, <a href="https://rlinbigworlds.ca/">RL in Big Worlds Workshop</a>, <a href="https://rl-conference.cc/">RLC</a>
+    - year: 2025 - Present
+      items:
+        - Research-Oriented Master's Scholarship, Zuse School ELIZA
 
 - title: Experience
   type: time_table
   contents:
     - title: Visiting Researcher
       institution: Softmax, San Francisco, USA
-      year: January 2026 - February 2026
+      year: 2026
       description:
-        - Trained MARL agents for the Alignment League Benchmark, a cooperative AI evaluation suite measuring organic alignment through goal inference, intent legibility, and dynamic coordination.
+        - Researched zero-shot cooperation in multi-agent reinforcement learning (MARL), training agents to coordinate with unfamiliar partners without prior joint training
+        - Studied emergent cooperative behavior on the Alignment League Benchmark, a suite measuring organic alignment between interacting agents
     - title: Student Research Assistant
       institution: PEARL, TU Darmstadt, Darmstadt, Germany
-      year: October 2024 - Present
+      year: 2024 - 2025
       description:
-        - Built a high-fidelity digital twin of a robotic kitchen environment in Isaac Sim, enabling sim-to-real transfer experiments.
-        - Executed robotic manipulation experiments in Isaac Lab using the digital twin.
+        - Built a high-fidelity digital twin of a robotic kitchen in NVIDIA Isaac Sim, modeling its assets and physics to support sim-to-real transfer
+        - Designed and ran GPU-parallelized robotic manipulation experiments in Isaac Lab on the digital twin
     - title: Research Intern
       institution: TNO-ESI, Eindhoven, Netherlands
-      year: May 2024 - September 2024
+      year: 2024
       description:
-        - Developed an RL-based diagnostic pipeline for high-tech systems, outperforming the baseline by 10% on root cause identification.
+        - Developed a reinforcement learning pipeline for automated root-cause diagnosis of high-tech systems, improving fault-identification accuracy by 10% over the existing baseline
 
-- title: Projects
+- title: Open Source Projects
   type: time_table
   contents:
-    - title: Memorax
-      institution: <a href="https://github.com/memory-rl/memorax">github.com/memory-rl/memorax</a>
-      year: January 2026
-      description:
-        - Built Memorax, a JAX framework unifying 6 RL algorithms with 11 memory architectures (LSTM, Mamba, Transformers, and more) across 11 environments.
-    - title: RLX
-      institution: <a href="https://github.com/noahfarr/rlx">github.com/noahfarr/rlx</a>
-      year: February 2024
-      description:
-        - Built and open-sourced the first RL library for Apple's MLX framework, reaching 248 stars and 20 forks on GitHub.
-
-- title: Scholarships and Awards
-  type: time_table
-  contents:
-    - title: Research-Oriented Master's Scholarship
-      institution: Zuse School ELIZA, Darmstadt, Germany
-      year: April 2025 - Present
-
-- title: Volunteer Experience
-  type: time_table
-  contents:
-    - title: Founding Member
-      institution: TU Darmstadt Robotics Engineering e.V., Darmstadt, Germany
-      year: October 2024 - Present
-
-- title: Skills
-  type: map
-  contents:
-    - ML/RL: PyTorch, JAX, Stable Baselines 3, Gymnasium, MuJoCo, Isaac Sim, Isaac Lab, MLX
-    - Engineering: Python, Linux, Git, Docker, SQL
-    - Languages: German (Native), English (Fluent)
+    - title: <a href="https://github.com/noahfarr/rlx">RLX</a>
+      year: Feb. 2024
+      description: Built and open-sourced RLX, the first RL library for Apple's MLX, end-to-end on-device training with vectorized environments exceeding 1M steps/second on Apple silicon, grown to 248 stars and 20 forks.
+    - title: <a href="https://github.com/noahfarr/memorax">Memorax</a>
+      year: Jan. 2026
+      description: Built Memorax, a JAX library treating memory as a first-class citizen, snapping composable primitives into architectures like GTrXL and xLSTM across 12 sequence models and 15 environments.
