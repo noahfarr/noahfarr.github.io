@@ -221,7 +221,6 @@ kramdown:
 # Includes & excludes
 include: ["_pages"]
 exclude:
-  - _projects/
   - bin/
   - CONTRIBUTING.md
   - CUSTOMIZE.md
