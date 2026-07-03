@@ -80,7 +80,7 @@ flickr_id: # your flickr id
 github_username: noahfarr # your GitHub user name
 gitlab_username: # your GitLab user name
 ieee_id: # your ieeexplore.ieee.org/author/id
-inspirehep_id:  # Inspire HEP author ID
+inspirehep_id: # Inspire HEP author ID
 instagram_id: # your instagram id
 kaggle_id: # your kaggle id
 keybase_username: # your keybase user name
@@ -624,7 +624,8 @@ third_party_libraries:
 # Get external JSON data
 # -----------------------------------------------------------------------------
 
-jekyll_get_json: []
+jekyll_get_json:
+  []
   # - data: resume
   #   json: assets/json/resume.json
 jsonresume:
