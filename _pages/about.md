@@ -6,7 +6,7 @@ subtitle: Master Student. Artificial Intelligence & Machine Learning. TU Darmsta
 
 profile:
   align: right
-  image: prof_pic.jpg
+  image: profile_picture.jpg
   image_circular: true # crops the image to make it circular
   more_info: >
 
