@@ -1,7 +1,7 @@
 ---
 layout: post
 title: remembering without a replay buffer
-date: 2026-07-05 09:00:00 +0200
+date: 2026-05-12 09:00:00 +0200
 description: an accessible writeup of our paper on streaming RL under partial observability with real-time recurrent learning
 tags: reinforcement-learning streaming partial-observability recurrent
 categories: research

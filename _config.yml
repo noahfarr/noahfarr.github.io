@@ -308,7 +308,7 @@ scholar:
   last_name: [Farr]
   first_name: [Noah, N.]
 
-  style: apa
+  style: _bibliography/apa-bracket.csl
   locale: en
 
   source: /_bibliography/

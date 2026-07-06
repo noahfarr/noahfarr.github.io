@@ -224,7 +224,7 @@ annotations.append(txt([cs[0] + 0.2, cs[1]], "$N\\times$", ["anchor=west"]))
 # (the run spans from the tokens' centre to mid_cs, at height from_cs[1] + 1.0)
 kv_cs = [(from_cs[0] + mid_cs[0]) / 2.0, from_cs[1] + 1.12]
 annotations.append(txt(kv_cs, "K, V", ["anchor=south", "font=\\footnotesize"]))
-annotations.append(txt([gq_cs[0] + 0.15, gq_cs[1] + 0.45], "Q",
+annotations.append(txt([gq_cs[0] + 0.15, gq_cs[1] + 0.2], "Q",
                        ["anchor=west", "font=\\footnotesize"]))
 
 # ==================== titles + divider ====================
