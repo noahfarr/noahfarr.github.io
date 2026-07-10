@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" role="img" aria-label="Monte Carlo search tree">
+  <!-- transparent background so the card colour shows through in light and dark themes -->
+  <!-- edges -->
+  <g fill="none" stroke-linecap="round">
+    <g stroke="#9aa0a6" stroke-width="3">
+      <line x1="300" y1="55" x2="150" y2="170"/>
+      <line x1="300" y1="55" x2="450" y2="170"/>
+      <line x1="150" y1="170" x2="100" y2="300"/>
+      <line x1="150" y1="170" x2="200" y2="300"/>
+      <line x1="300" y1="170" x2="255" y2="300"/>
+      <line x1="450" y1="170" x2="400" y2="300"/>
+      <line x1="450" y1="170" x2="500" y2="300"/>
+    </g>
+    <!-- principal (most-visited) path -->
+    <g stroke="#3b82f6" stroke-width="5">
+      <line x1="300" y1="55" x2="300" y2="170"/>
+      <line x1="300" y1="170" x2="345" y2="300"/>
+    </g>
+  </g>
+  <!-- nodes -->
+  <g fill="#9aa0a6">
+    <circle cx="150" cy="170" r="11"/>
+    <circle cx="450" cy="170" r="12"/>
+    <circle cx="100" cy="300" r="6"/>
+    <circle cx="200" cy="300" r="7"/>
+    <circle cx="255" cy="300" r="7"/>
+    <circle cx="400" cy="300" r="6"/>
+    <circle cx="500" cy="300" r="7"/>
+  </g>
+  <g fill="#3b82f6">
+    <circle cx="300" cy="55" r="17"/>
+    <circle cx="300" cy="170" r="15"/>
+    <circle cx="345" cy="300" r="12"/>
+  </g>
+</svg>
