@@ -10,7 +10,7 @@ github: https://github.com/noahfarr/Jax3D
 
 [jax3d](https://github.com/noahfarr/Jax3D) is a JAX 3D rigid-body physics engine, a 3D sibling to [Jax2D](https://github.com/MichaelTMatthews/Jax2D). It supports boxes, spheres, wedges, and prisms connected by revolute, fixed, and spherical joints, all fully jittable and batchable with `jax.vmap`.
 
-The car below is the real engine, not a video. Its physics `step` (contacts, an iterative constraint solver, motorised wheel joints) is exported to StableHLO with `jax.export` and compiled to WebAssembly by [whlo](https://github.com/noahfarr/whlo), so the whole simulation runs client-side with no server. Drive it up the ramp.
+The scene below is the real engine, not a video. Its physics `step` (contacts, an iterative constraint solver, motorised wheel joints) is exported to StableHLO with `jax.export` and compiled to WebAssembly by [whlo](https://github.com/noahfarr/whlo), so the whole simulation runs client-side with no server. In **Build** mode, drop ramps, platforms, and walls to lay out a track; switch to **Drive** and take the car around what you made.
 
 <div id="jax3d-app"></div>
 
