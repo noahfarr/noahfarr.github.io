@@ -1,4 +1,4 @@
-# tools/regen — regenerate the browser-demo assets
+# tools/whlo — regenerate the browser-demo assets
 
 The MCTS (`/projects/mcts/`) and jax3d (`/projects/jax3d/`) demos ship
 pre-generated StableHLO modules and scene data under `assets/`. This directory
@@ -13,7 +13,7 @@ whlo are needed here.
 ## Setup
 
 ```bash
-cd tools/regen
+cd tools/whlo
 uv sync            # installs the pinned mcts + jax3d from GitHub
 ```
 
@@ -27,7 +27,7 @@ JAX_PLATFORMS=cpu uv run python export_mcts.py --env-id tic_tac_toe --num-simula
 JAX_PLATFORMS=cpu uv run python export_jax3d.py --num-boxes 12 --num-fixated 11
 
 # pgx renderer: regenerates assets/js/mcts/chess_pieces.mjs and dumps reference SVGs
-uv run python gen_reference.py
+uv run python generate_reference.py
 # then pixel-diff the deployed renderer against pgx (needs chromium + imagemagick `compare`)
 node verify_render.mjs
 ```
