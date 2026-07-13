@@ -88,6 +88,11 @@ jobs:
         run: |
           npm install -g purgecss
           purgecss -c purgecss.config.js
+      - name: Disable GitHub Pages' redundant Jekyll rebuild 🚫
+        # The site is already fully built above; serve _site as-is so Pages'
+        # legacy Jekyll pass doesn't re-process (and choke on) copied files such
+        # as assets/tikz/README.md, whose prose contains a literal include tag.
+        run: touch _site/.nojekyll
       - name: Deploy 🚀
         if: github.event_name != 'pull_request'
         uses: JamesIves/github-pages-deploy-action@v4
