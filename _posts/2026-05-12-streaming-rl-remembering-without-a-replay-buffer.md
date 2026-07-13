@@ -9,8 +9,8 @@ featured: true
 ---
 
 This is an accessible writeup of a paper I wrote with Aryaman Reddi, Carlo D'Eramo, and
-Jan Peters, *Streaming Reinforcement Learning under Partial Observability with Real-Time
-Recurrent Learning* {% cite farr2026streaming --file references %}, which won a best paper award at the RL
+Jan Peters, _Streaming Reinforcement Learning under Partial Observability with Real-Time
+Recurrent Learning_ {% cite farr2026streaming --file references %}, which won a best paper award at the RL
 in Big Worlds workshop at RLC. In one sentence: we teach a streaming RL agent to
 remember, without a replay buffer and without ever unrolling the network through time.
 
@@ -22,7 +22,7 @@ with a batch size of one, and never stores or replays anything. It is much close
 natural agent actually learns: online, incrementally, from a single stream of experience.
 For a long time this simply did not work with deep networks, they were too unstable, but a
 recent line of work on streaming deep RL got it stable and competitive. The catch is that
-all of it assumed *full observability*: the current observation tells you everything you
+all of it assumed _full observability_: the current observation tells you everything you
 need to know.
 
 ## The catch: memory
@@ -41,7 +41,7 @@ There are two standard ways to do that, and under streaming both break.
    TBPTT(1). The agent can only assign credit to the step immediately before, and anything
    older is invisible. Long-range memory is off the table.
 2. **Real-time recurrent learning (RTRL).** Instead of looking backward, carry the gradient
-   *forward*. At every step you maintain how the current hidden state depends on the
+   _forward_. At every step you maintain how the current hidden state depends on the
    parameters, and update that online as new observations arrive. It is exact and needs no
    buffer, which fits streaming perfectly. The problem is cost: for an ordinary recurrent
    network this bookkeeping scales quadratically or worse in the hidden size, which is
@@ -53,7 +53,7 @@ past exactly but is too expensive to run.
 ## The idea: make the recurrence diagonal
 
 The way out is to change the architecture so that RTRL becomes cheap. If the recurrence is
-*diagonal*, each hidden unit feeds back only into itself, then the way the hidden state
+_diagonal_, each hidden unit feeds back only into itself, then the way the hidden state
 depends on any one parameter stays local and decoupled from the others. You no longer need a
 full sensitivity matrix; a single running trace per parameter is enough to keep the exact
 gradient up to date. That collapses RTRL from prohibitive to **linear in the number of

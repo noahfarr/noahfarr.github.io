@@ -20,7 +20,11 @@ const SVG_OPEN = (w, h) =>
 // GRID_SIZE 60, board 3x3. Light ColorSet: background=white, grid=black.
 // Both marks are drawn in grid_color (black): 0 -> cross, 1 -> ring.
 function renderTicTacToe(board) {
-  const G = 60, BW = 3, BH = 3, W = (BW + 1) * G, H = (BH + 1) * G;
+  const G = 60,
+    BW = 3,
+    BH = 3,
+    W = (BW + 1) * G,
+    H = (BH + 1) * G;
   const grid = "black";
   let s = SVG_OPEN(W, H);
   s += `<g transform="scale(1.0)">`;
@@ -49,7 +53,8 @@ function renderTicTacToe(board) {
   // marks, in board order
   for (let i = 0; i < board.length; i++) {
     const mark = board[i];
-    const x = i % BW, y = Math.floor(i / BH);
+    const x = i % BW,
+      y = Math.floor(i / BH);
     if (mark === 0) {
       const w = G * 0.05;
       s += `<line stroke="${grid}" stroke-width="${w}" x1="${(x + 0.1) * G}" x2="${(x + 0.9) * G}" y1="${(y + 0.1) * G}" y2="${(y + 0.9) * G}" />`;
@@ -67,8 +72,13 @@ function renderTicTacToe(board) {
 // grid=black, text=gray, background=white. Board is 42 (6 rows) but the grid is
 // drawn 7x7, exactly as pgx does.
 function renderConnectFour(board) {
-  const G = 35, BW = 7, BH = 7, W = (BW + 1) * G, H = (BH + 1) * G;
-  const text = "gray", grid = "black";
+  const G = 35,
+    BW = 7,
+    BH = 7,
+    W = (BW + 1) * G,
+    H = (BH + 1) * G;
+  const text = "gray",
+    grid = "black";
   let s = SVG_OPEN(W, H);
   s += `<rect fill="white" height="${BH * G}" width="${BW * G}" x="0" y="0" />`; // root bg (added to dwg)
   s += `<g transform="scale(1.0)">`;
@@ -76,12 +86,10 @@ function renderConnectFour(board) {
   s += `<g transform="translate(${G / 2},${G / 2})">`;
 
   s += `<g id="vline" stroke="${text}">`;
-  for (let x = 1; x < BW; x++)
-    s += `<line stroke-width="1px" x1="${G * x}" x2="${G * x}" y1="0" y2="${G * (BH - 1)}" />`;
+  for (let x = 1; x < BW; x++) s += `<line stroke-width="1px" x1="${G * x}" x2="${G * x}" y1="0" y2="${G * (BH - 1)}" />`;
   s += `</g>`;
   s += `<g id="vline" stroke="${text}">`;
-  for (let y = 1; y < BH; y++)
-    s += `<line stroke-width="0.1px" x1="0" x2="${G * BW}" y1="${G * y}" y2="${G * y}" />`;
+  for (let y = 1; y < BH; y++) s += `<line stroke-width="0.1px" x1="0" x2="${G * BW}" y1="${G * y}" y2="${G * y}" />`;
   s += `</g>`;
 
   const bar = 6;
@@ -111,13 +119,16 @@ const FILE_CHAR = ["a", "b", "c", "d", "e", "f", "g", "h"];
 function flipChessBoard(board) {
   // board2[r*8 + c] = -board[r*8 + (7 - c)]   (pgx _flip on the board field)
   const out = new Array(64);
-  for (let r = 0; r < 8; r++)
-    for (let c = 0; c < 8; c++) out[r * 8 + c] = -board[r * 8 + (7 - c)];
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) out[r * 8 + c] = -board[r * 8 + (7 - c)];
   return out;
 }
 
 function renderChess(board, color) {
-  const G = 50, BW = 8, BH = 8, W = (BW + 1) * G, H = (BH + 1) * G;
+  const G = 50,
+    BW = 8,
+    BH = 8,
+    W = (BW + 1) * G,
+    H = (BH + 1) * G;
   const grid = "black";
   if (color === 1) board = flipChessBoard(board);
 
@@ -130,7 +141,8 @@ function renderChess(board, color) {
   // squares
   for (let i = 0; i < BW * BH; i++) {
     const fill = Math.floor(i / BH) % 2 !== i % 2 ? "gray" : "white";
-    const x = i % BW, y = Math.floor(i / BH);
+    const x = i % BW,
+      y = Math.floor(i / BH);
     s += `<rect fill="${fill}" height="${G}" width="${G}" x="${x * G}" y="${y * G}" />`;
   }
   // border
@@ -149,7 +161,8 @@ function renderChess(board, color) {
     if (pi === 0) continue;
     if (pi < 0) pi = -pi + 6;
     const uri = CHESS_PIECES[PIECES[pi]];
-    const x = Math.floor(i / BH), y = 7 - (i % BH);
+    const x = Math.floor(i / BH),
+      y = 7 - (i % BH);
     s += `<image height="${G * 0.8}" width="${G * 0.8}" x="${x * G + 5}" xlink:href="${uri}" y="${y * G + 5}" />`;
   }
   s += `</g>`;

@@ -25,8 +25,7 @@ const svgSize = (svg) => ({
 });
 
 const wrapHtml = (svg) =>
-  `<!doctype html><html><head><meta charset="utf-8">` +
-  `<style>*{margin:0;padding:0}svg{display:block}</style></head><body>${svg}</body></html>`;
+  `<!doctype html><html><head><meta charset="utf-8">` + `<style>*{margin:0;padding:0}svg{display:block}</style></head><body>${svg}</body></html>`;
 
 function rasterize(svg, name) {
   const { width, height } = svgSize(svg);

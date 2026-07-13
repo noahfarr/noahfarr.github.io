@@ -20,9 +20,9 @@ needing a second network to do it. I've been calling it **CLEO**.
 
 ## Primer: LEO
 
-Goal-conditioned RL learns a value function $$Q(s, g)$$ over states *and* goals. To wring
+Goal-conditioned RL learns a value function $$Q(s, g)$$ over states _and_ goals. To wring
 more signal out of each transition we relabel trajectories with goals the agent actually
-reached (hindsight relabelling). The dream is to relabel every transition with *every*
+reached (hindsight relabelling). The dream is to relabel every transition with _every_
 goal, but for a goal set of size $$|G|$$ that's $$|G|$$ passes per transition. That clearly
 does not scale. Can we get all-goals learning without the all-goals price tag?
 
@@ -31,8 +31,8 @@ does not scale. Can we get all-goals learning without the all-goals price tag?
 <figcaption class="caption">A goal-conditioned agent commanded to reach goals in a maze. <span style="opacity:.7">Animation &#169; Michael Matthews, from the <a href="https://www.mtmatthews.com/blog/leo/">LEO post</a>.</span></figcaption>
 </figure>
 
-LEO's answer is to change the shape of the network. Instead of the goal being an *input*,
-it moves into the *output*, so the reparameterisation goes from
+LEO's answer is to change the shape of the network. Instead of the goal being an _input_,
+it moves into the _output_, so the reparameterisation goes from
 
 $$
 Q(s, g) \rightarrow \mathbb{R}
@@ -41,8 +41,8 @@ Q(s) \rightarrow \mathbb{R}^{|G| \times |A|}.
 $$
 
 Feed in one state and you get back a whole table of values, one row per goal, one column
-per action, in a single forward pass. Learning against all goals is then a *single
-backward pass*, which with 512 goals works out around 250× cheaper than actually
+per action, in a single forward pass. Learning against all goals is then a _single
+backward pass_, which with 512 goals works out around 250× cheaper than actually
 relabelling against all of them. All the reach of all-goals learning, almost none of the
 bill. Great!
 
@@ -63,9 +63,9 @@ bill. Great!
 
 ## Why does LEO lose fidelity?
 
-On Craftax, LEO does something no baseline does: it gets *non-zero* success on the hard,
+On Craftax, LEO does something no baseline does: it gets _non-zero_ success on the hard,
 long-horizon goals (like descending to the first dungeon level). But when you look at the
-per-goal rates, something strange shows up. On the *easy* goals, where every UVFA
+per-goal rates, something strange shows up. On the _easy_ goals, where every UVFA
 baseline sails to nearly 100%, LEO plateaus around 80%. Why is this?
 
 <figure style="margin: 1.6rem auto; text-align: center;">
@@ -77,13 +77,13 @@ The answer, as Michael diagnoses it, is really two answers:
 
 1. **The shared, unconditioned trunk is an information bottleneck.** At action time the
    trunk is never told which goal is in play, so its fixed-width representation has to be
-   good enough for *all* of them simultaneously. Capacity that a single-goal network could
+   good enough for _all_ of them simultaneously. Capacity that a single-goal network could
    spend on one goal is spread thin across the whole set.
 2. **State and goal are combined by late fusion.** Every goal's values come off one shared
    embedding via a single linear layer, so state and goal never really interact until that
    last step. It is about the shallowest way the two could be fused.
 
-Michael has a memorable way of putting this: LEO is a *"coarse-grained data sponge"*, one
+Michael has a memorable way of putting this: LEO is a _"coarse-grained data sponge"_, one
 that absorbs all the information it can from every transition but does not wring it back
 out at high fidelity. His fix, Dual LEO, keeps the sponge and adds a conventional UVFA
 network as a student that learns from what the sponge discovers. It works beautifully. But
@@ -94,11 +94,11 @@ itself.
 
 Here's the thing both limitations have in common: the goal shows up too late and too
 weakly. So what if, instead of splitting one shared vector with a linear layer, we let
-each goal *reach into* the state and ask its own question, pulling out exactly the
+each goal _reach into_ the state and ask its own question, pulling out exactly the
 features it needs? I've been calling this **CLEO** (Cross-attention LEO).
 
 Concretely: the trunk stops producing a single vector and instead produces a small set of
-state *tokens*. Each goal's embedding becomes a *query*, and one cross-attention layer
+state _tokens_. Each goal's embedding becomes a _query_, and one cross-attention layer
 lets every goal attend over the state tokens:
 
 ```python
@@ -121,23 +121,23 @@ q       = nn.Dense(num_actions)(queries)
 
 From the outside the shapes are identical. One pass still gives us
 $$\mathbb{R}^{|G| \times |A|}$$, so we keep the sponge's efficiency. But the single change
-goes after *both* limitations at once:
+goes after _both_ limitations at once:
 
 1. It **widens the bottleneck**: the state is now a set of tokens acting as a
    goal-addressable memory, not one vector every goal has to fight over.
 2. It **trades late fusion for early(er) fusion**: goal and state interact through
-   attention *before* the readout, so each goal shapes its own representation instead of
+   attention _before_ the readout, so each goal shapes its own representation instead of
    indexing a frozen one.
 
 Note that this sits neatly between LEO (goal enters last, late fusion) and a full UVFA
 (goal conditions the whole trunk, early fusion but no all-goals reuse): the expensive
-trunk still runs *once*, and only the cheap per-goal attention is goal-specific. The hope
+trunk still runs _once_, and only the cheap per-goal attention is goal-specific. The hope
 is to buy UVFA's fidelity at LEO's price. The name is a placeholder I've grown fond of,
 but the mechanism is the point here, not the acronym.
 
 ## Does it actually help?
 
-*Coming soon.*
+_Coming soon._
 
 ## When would CLEO help?
 
@@ -154,7 +154,7 @@ CLEO inherits LEO's preconditions and adds one of its own. It might be worth try
 A few threads I want to pull:
 
 - **Is CLEO a rival to Dual LEO, or a component of it?** Dual LEO fixes fidelity with a
-  student; CLEO fixes it in the readout. A Dual setup with a CLEO *teacher* is the obvious
+  student; CLEO fixes it in the readout. A Dual setup with a CLEO _teacher_ is the obvious
   next experiment. Do the gains stack, or overlap?
 - **How far does the token/goal attention scale?** Where does the number of state tokens
   stop paying for itself as the goal count grows?

@@ -9,3 +9,15 @@ assets/plotly/demo.html
 lighthouse_results/**
 _posts/2015-10-20-math.md
 _sass/font-awesome/*.scss
+
+# generated demo assets (rebuilt by tools/whlo — see tools/whlo/README.md)
+assets/jax3d/
+assets/mcts/
+assets/js/mcts/chess_pieces.mjs
+
+# vendored: whlo wasm build (assets/js/*/whlo/pkg is vendored) + third-party sane_tikz
+assets/js/**/whlo/
+assets/tikz/sane_tikz/
+
+# local dev artifacts (Python venv from `uv sync`)
+**/.venv/
