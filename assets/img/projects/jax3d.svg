@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" role="img" aria-label="A car and a ramp">
+  <!-- transparent background so the card colour shows through in light and dark themes -->
+  <g fill="none" stroke="#9aa0a6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <!-- ground and ramp -->
+    <line x1="40" y1="300" x2="360" y2="300"/>
+    <path d="M360 300 L520 214 L560 214"/>
+  </g>
+  <!-- car -->
+  <g>
+    <rect x="150" y="232" width="90" height="34" rx="10" fill="#3a3d44"/>
+    <rect x="120" y="256" width="170" height="34" rx="12" fill="#d23c3c"/>
+    <g fill="#2e2e30" stroke="#101012" stroke-width="3">
+      <circle cx="158" cy="292" r="22"/>
+      <circle cx="252" cy="292" r="22"/>
+    </g>
+    <g fill="#8a8d93">
+      <circle cx="158" cy="292" r="7"/>
+      <circle cx="252" cy="292" r="7"/>
+    </g>
+  </g>
+</svg>

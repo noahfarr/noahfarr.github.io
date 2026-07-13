@@ -1,0 +1,11 @@
+[project]
+name = "site-regen"
+version = "0"
+description = "Regenerate the browser-demo assets (StableHLO exports, chess reference art) for the MCTS and jax3d demos, pulling the source libraries from GitHub as pinned dependencies."
+requires-python = ">=3.13"
+dependencies = [
+    # jax3d requires Python 3.13; both pull jax[cuda12] on Linux (runs on CPU
+    # with JAX_PLATFORMS=cpu). Bump these commit pins when a library changes.
+    "mcts @ git+https://github.com/noahfarr/mcts@01affe2c5a37ef5ef828028e0463b61bf0c13bb6",
+    "jax3d @ git+https://github.com/noahfarr/Jax3D@2d1ee091b4f9e7fc57f6517a1b6deff66c467ce3",
+]
