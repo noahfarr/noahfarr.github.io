@@ -218,8 +218,7 @@ async function main() {
   } catch (err) {
     setStatus("Couldn't load the model", "lose");
     console.error("[mcts] load/compile failed:", err);
-    ui.note.textContent =
-      "Missing assets/mcts/*.mlir or assets/js/mcts/whlo/. Run examples/export_web.py and copy whlo's js/ (see the page source).";
+    ui.note.textContent = "Missing assets/mcts/*.mlir or assets/js/mcts/whlo/. Run examples/export_web.py and copy whlo's js/ (see the page source).";
     return;
   }
 
@@ -255,9 +254,7 @@ async function main() {
       cell.disabled = !playable;
 
       const show = heat && empty && heat[i] > 0;
-      cell.style.backgroundColor = show
-        ? `rgba(59,130,246,${(0.08 + 0.5 * (heat[i] / max)).toFixed(3)})`
-        : "";
+      cell.style.backgroundColor = show ? `rgba(59,130,246,${(0.08 + 0.5 * (heat[i] / max)).toFixed(3)})` : "";
       cell.querySelector(".heat").textContent = show ? String(Math.round(heat[i])) : "";
     });
   }
