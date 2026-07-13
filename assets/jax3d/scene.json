@@ -55,9 +55,10 @@
       3
     ],
     "turn_strength": 0.9,
+    "throttle": 1.4,
     "max_yaw_rate": 1.2,
     "yaw_smoothing": 0.15,
-    "steps_per_frame": 4
+    "steps_per_frame": 2
   },
   "num_state_leaves": 136,
   "leaf": {

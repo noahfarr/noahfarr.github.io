@@ -46,7 +46,9 @@ def build_scene(num_boxes=5, num_spheres=4, num_fixated_boxes=4):
     )
     simulation_params = SimParams()
     engine = PhysicsEngine(static_params)
-    sim_state = create_empty_sim(static_params, add_floor=True, add_walls_and_ceiling=False, scene_size=7.2)
+    sim_state = create_empty_sim(static_params, add_floor=True, add_walls_and_ceiling=False, scene_size=16.0)
+    # lighter than Earth (-9.81) so jumps off the ramp feel floatier
+    sim_state = sim_state.replace(gravity=jnp.array([0.0, 0.0, -5.0]))
 
     ramp_angle = jnp.radians(15.0)
     ramp_half_extents = jnp.array([1.5, 2.6, 0.05])
@@ -201,8 +203,12 @@ def main():
         "box_colors": [[0.588, 0.588, 0.608]] * 4 + [[0.824, 0.235, 0.235]],
         "sphere_color": [0.18, 0.18, 0.19],
         "camera": {"target": [0.0, 0.0, 0.5], "distance": 8.0, "azimuth": -2.2, "elevation": 0.4, "fov_deg": 50.0},
-        "drive": {"left_wheels": [0, 2], "right_wheels": [1, 3], "turn_strength": 0.9,
-                   "max_yaw_rate": 1.2, "yaw_smoothing": 0.15, "steps_per_frame": 4},
+        # throttle must stay >= ~1.4: below that the car can't power over the
+        # ramp/landing crest and stalls dead (traction-limited, not a gravity
+        # thing). steps_per_frame controls sim-time dilation instead, so overall
+        # pace can be tuned down without touching climbing behaviour.
+        "drive": {"left_wheels": [0, 2], "right_wheels": [1, 3], "turn_strength": 0.9, "throttle": 1.4,
+                   "max_yaw_rate": 1.2, "yaw_smoothing": 0.15, "steps_per_frame": 2},
         "num_state_leaves": len(state_leaves),
         "leaf": {
             "box_position": find_leaf(".box.position"),
