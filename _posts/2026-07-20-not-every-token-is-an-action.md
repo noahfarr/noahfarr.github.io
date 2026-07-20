@@ -233,9 +233,9 @@ down structurally and the bug it corrects cannot even be expressed.
 <div class="stream-grid">
   <div class="lane-label">o</div>
   <div class="tok obs">prompt</div>
-  <div class="tok none">—</div>
+  <div class="tok none"></div>
   <div class="tok obs">stdout:<br>3 failed</div>
-  <div class="tok none">—</div>
+  <div class="tok none"></div>
   <div class="tok obs">tool:<br>file saved</div>
   <div class="tok obs">stdout:<br>3 passed</div>
   <div class="lane-label">a</div>
@@ -254,14 +254,14 @@ down structurally and the bug it corrects cannot even be expressed.
   <div class="tok rew">+1</div>
 </div>
 </div>
-<figcaption class="caption" style="margin-top:8px;">The same rollout, the way a POMDP-native implementation stores it: observation, action, and reward as separate, step-aligned channels, which is literally the network's input signature. Dashes are steps where nothing came back from the environment. The loss only ever touches the action lane, not because anything is masked, but because there is nothing else it could touch.</figcaption>
+<figcaption class="caption" style="margin-top:8px;">The same rollout, the way a POMDP-native implementation stores it: observation, action, and reward as separate, step-aligned channels, which is literally the network's input signature. The empty cells are steps where nothing came back from the environment. The loss only ever touches the action lane, not because anything is masked, but because there is nothing else it could touch.</figcaption>
 </figure>
 
 And because the algorithm is torso-agnostic, you can watch this happen. Below, the exact
-same PPO update — exported to StableHLO and compiled to WebAssembly by
-[whlo](https://github.com/noahfarr/whlo) — trains a small policy on Wordle right here in
+same PPO update, exported to StableHLO and compiled to WebAssembly by
+[whlo](https://github.com/noahfarr/whlo), trains a small policy on Wordle right here in
 your browser. The three buttons swap the torso between a GRU, a MinGRU, and a
-self-attention stack; nothing else changes. Pick one and hit train.
+self-attention stack, and nothing else changes. Pick one and hit train.
 
 <div id="pomdp-trainer"></div>
 <noscript>This demo needs JavaScript and WebAssembly.</noscript>

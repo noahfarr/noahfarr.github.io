@@ -1,33 +1,38 @@
 // Train a small policy on Wordle in your browser, swapping the torso behind one
-// fixed PPO. The point of the blog post made interactive: the RecurrentPPO update
-// step is compiled to WebAssembly by whlo (https://github.com/noahfarr/whlo), and
-// only the network torso changes between the three buttons. The algorithm cannot
-// tell which one it is driving.
+// fixed PPO. The blog post made interactive: the RecurrentPPO update step is
+// compiled to WebAssembly by whlo (https://github.com/noahfarr/whlo); only the
+// network torso changes between the three buttons, and the algorithm cannot tell
+// which one it is driving.
 //
 //   /assets/pomdp/<model>/init.mlir        key         -> state
 //   /assets/pomdp/<model>/train_step.mlir  state, key  -> state', metric
 //
 // If those modules are present the trainer runs them for real. Until they are (the
 // Wordle env is being finalised), it runs a clearly-labelled illustrative preview
-// so the interface is fully alive. The preview invents no benchmark: all three
-// torsos learn under the same loop, which is the whole claim.
+// so the interface is fully alive. The preview invents no benchmark; all three
+// torsos climb under the same loop, which is the whole claim.
+//
+// Colours are the dataviz reference palette's first three categorical slots
+// (blue / green / magenta), validated all-pairs on this site's light and dark
+// card surfaces. Theme, ink, and accent come from al-folio's own CSS variables so
+// the widget is native to the site's light/dark toggle.
 
 const MOUNT = "pomdp-trainer";
-// Reuse the compiler the MCTS demo already vendors, so there is one whlo on the site.
-const WHLO = "/assets/js/mcts/whlo/src/index.mjs";
+const WHLO = "/assets/js/mcts/whlo/src/index.mjs"; // reuse the vendored compiler
 const MODEL_DIR = (m) => `/assets/pomdp/${m}`;
 
 const MODELS = [
-  { id: "gru", label: "GRU", color: "#3b82f6", note: "sequential scan · BPTT" },
-  { id: "min_gru", label: "MinGRU", color: "#22c55e", note: "associative scan" },
-  { id: "attention", label: "Attention", color: "#f59e0b", note: "KV-cache attention" },
+  { id: "gru", label: "GRU", varName: "--s1", note: "sequential scan · BPTT" },
+  { id: "min_gru", label: "MinGRU", varName: "--s2", note: "associative scan" },
+  { id: "attention", label: "Attention", varName: "--s3", note: "KV-cache attention" },
 ];
 
 const MAX_UPDATES = 160; // stop each run here so the plot stays readable
 const METRIC_LABEL = "episodes solved";
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ---------------------------------------------------------------------------
-// small helpers
+// helpers
 // ---------------------------------------------------------------------------
 
 const el = (tag, cls) => {
@@ -44,7 +49,6 @@ function randKey() {
   return k;
 }
 
-// A tiny deterministic PRNG so a model's preview curve is stable within a run.
 function mulberry32(seed) {
   let a = seed >>> 0;
   return () => {
@@ -56,7 +60,6 @@ function mulberry32(seed) {
   };
 }
 
-// map whlo positional inputs -> named, run, return positional outputs
 function call(exe, inputs) {
   const named = {};
   exe.inputs.forEach((slot, i) => (named[slot.name] = inputs[i]));
@@ -65,16 +68,12 @@ function call(exe, inputs) {
 }
 
 // ---------------------------------------------------------------------------
-// backends: both expose { live, reset(), step() -> metric in [0,1] }
+// backends: both expose { live, updates, reset(id?), step() -> [0,1] }
 // ---------------------------------------------------------------------------
 
-// Real training: compile init + train_step for one model and step the PPO update.
-// train_step is expected to return the new state leaves followed by one scalar
-// metric leaf (the rollout solved-rate); its index is read from layout.json.
 class WhloBackend {
   constructor(compile, initExe, stepExe, metricIndex) {
     this.live = true;
-    this.compile = compile;
     this.initExe = initExe;
     this.stepExe = stepExe;
     this.metricIndex = metricIndex;
@@ -90,10 +89,8 @@ class WhloBackend {
       fetch(`${dir}/layout.json`).then((r) => (r.ok ? r.json() : null)),
     ]);
     const [initExe, stepExe] = await Promise.all([compile(initSrc), compile(stepSrc)]);
-    // the metric is the last output unless layout.json marks one
-    const metricIndex = (layout && layout.metric_index != null)
-      ? layout.metric_index
-      : stepExe.outputs.length - 1;
+    const metricIndex =
+      layout && layout.metric_index != null ? layout.metric_index : stepExe.outputs.length - 1;
     return new WhloBackend(compile, initExe, stepExe, metricIndex);
   }
   reset() {
@@ -101,7 +98,6 @@ class WhloBackend {
     this.updates = 0;
   }
   step() {
-    // train_step returns [state leaves..., metric]; keep the leaves, read the metric
     const out = call(this.stepExe, [...this.state, randKey()]);
     const metric = Number(out[this.metricIndex][0]);
     this.state = out.slice(0, this.metricIndex);
@@ -110,27 +106,23 @@ class WhloBackend {
   }
 }
 
-// Illustrative preview: a plausible PPO learning curve. No claimed benchmark, just
-// "it rises under the same loop". Each torso gets a mild, noisy climb to a plateau.
 class MockBackend {
   constructor(modelId) {
     this.live = false;
     const m = MODELS.findIndex((x) => x.id === modelId);
-    // gentle per-torso spread so the three curves are distinguishable, not a result
     this.tau = 34 + m * 6;
     this.plateau = 0.7 + m * 0.05;
     this.reset(modelId);
   }
   reset(modelId = this.modelId) {
     this.modelId = modelId;
-    this.rng = mulberry32(0x9e37 + this.modelId.length * 101 + MODELS.findIndex((x) => x.id === this.modelId));
+    this.rng = mulberry32(0x9e37 + MODELS.findIndex((x) => x.id === this.modelId) * 2654435761);
     this.updates = 0;
     this.smooth = 0.02 + 0.03 * this.rng();
   }
   step() {
     const t = this.updates++;
     const target = this.plateau * (1 - Math.exp(-t / this.tau));
-    // random-walk toward the target with exploration noise, plus a small early dip
     const noise = (this.rng() - 0.5) * 0.11 * Math.exp(-t / 90);
     this.smooth += 0.14 * (target - this.smooth) + noise;
     return clamp01(this.smooth);
@@ -138,16 +130,31 @@ class MockBackend {
 }
 
 // ---------------------------------------------------------------------------
-// plot: dependency-free canvas line chart, one series per model, theme-aware
+// plot: dependency-free canvas line chart, area-gradient on the active series,
+// hover crosshair + tooltip, direct head labels. Reads theme colours live.
 // ---------------------------------------------------------------------------
 
 class Plot {
-  constructor(canvas) {
+  constructor(canvas, root, labelOf) {
     this.canvas = canvas;
+    this.root = root;
+    this.labelOf = labelOf;
     this.ctx = canvas.getContext("2d");
-    this.series = new Map(); // id -> { color, data:[], active }
+    this.series = new Map(); // id -> { data: [] }
+    this.active = null;
+    this.hover = null; // x-index under the pointer
+    this.running = false;
+    this.pulse = 0;
     this._resize();
     new ResizeObserver(() => this._resize()).observe(canvas);
+    canvas.addEventListener("pointermove", (e) => this._onMove(e));
+    canvas.addEventListener("pointerleave", () => {
+      this.hover = null;
+      this.draw();
+    });
+  }
+  _cssVar(name) {
+    return getComputedStyle(this.root).getPropertyValue(name).trim() || "#888";
   }
   _resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -159,12 +166,12 @@ class Plot {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.draw();
   }
-  ensure(id, color) {
-    if (!this.series.has(id)) this.series.set(id, { color, data: [] });
+  ensure(id) {
+    if (!this.series.has(id)) this.series.set(id, { data: [] });
     return this.series.get(id);
   }
-  push(id, color, value) {
-    this.ensure(id, color).data.push(value);
+  push(id, value) {
+    this.ensure(id).data.push(value);
     this.draw();
   }
   clear(id) {
@@ -175,144 +182,355 @@ class Plot {
     this.active = id;
     this.draw();
   }
-  _textColor() {
-    // read the inherited text color so axes adapt to light/dark themes
-    return getComputedStyle(this.canvas).color || "#888";
+  setRunning(on) {
+    this.running = on;
+    if (on && !REDUCED) this._tick();
+  }
+  _tick() {
+    if (!this.running) return;
+    this.pulse = (this.pulse + 0.05) % 1;
+    this.draw();
+    requestAnimationFrame(() => this._tick());
+  }
+  _geom() {
+    const padL = 38, padR = 14, padT = 16, padB = 24;
+    return {
+      x0: padL,
+      x1: this.w - padR,
+      y0: this.h - padB,
+      y1: padT,
+      sx: (i) => padL + (this.w - padR - padL) * (i / (MAX_UPDATES - 1)),
+      sy: (v) => this.h - padB + (padT - (this.h - padB)) * clamp01(v),
+    };
+  }
+  _onMove(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const g = this._geom();
+    const px = e.clientX - rect.left;
+    const t = (px - g.x0) / (g.x1 - g.x0);
+    const maxLen = Math.max(0, ...[...this.series.values()].map((s) => s.data.length));
+    if (maxLen < 2 || t < 0 || t > 1) {
+      this.hover = null;
+    } else {
+      this.hover = Math.round(t * (MAX_UPDATES - 1));
+    }
+    this.draw();
   }
   draw() {
     const { ctx, w, h } = this;
+    const g = this._geom();
     ctx.clearRect(0, 0, w, h);
-    const padL = 34, padR = 10, padT = 12, padB = 22;
-    const x0 = padL, x1 = w - padR, y0 = h - padB, y1 = padT;
-    const ink = this._textColor();
+    const ink = this._cssVar("--ink");
+    const muted = this._cssVar("--muted");
+    const line = this._cssVar("--line");
+    const surface = this._cssVar("--surface");
 
-    // axes + gridlines
-    ctx.lineWidth = 1;
-    ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.font = "600 10.5px ui-monospace, SFMono-Regular, Menlo, monospace";
     ctx.textBaseline = "middle";
+
+    // horizontal gridlines + y labels
     for (let i = 0; i <= 4; i++) {
       const v = i / 4;
-      const y = y0 + (y1 - y0) * v;
-      ctx.strokeStyle = withAlpha(ink, i === 0 ? 0.35 : 0.12);
+      const y = g.sy(v);
+      ctx.strokeStyle = rgba(line, i === 0 ? 1 : 0.5);
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(x0, y);
-      ctx.lineTo(x1, y);
+      ctx.moveTo(g.x0, y);
+      ctx.lineTo(g.x1, y);
       ctx.stroke();
-      ctx.fillStyle = withAlpha(ink, 0.55);
+      ctx.fillStyle = muted;
       ctx.textAlign = "right";
-      ctx.fillText(Math.round(v * 100) + "%", x0 - 6, y);
+      ctx.fillText(Math.round(v * 100) + "%", g.x0 - 8, y);
     }
-    // x-axis label
-    ctx.fillStyle = withAlpha(ink, 0.55);
-    ctx.textAlign = "center";
-    ctx.fillText("training updates →", (x0 + x1) / 2, h - 6);
+    ctx.fillStyle = muted;
+    ctx.textAlign = "left";
+    ctx.fillText("training updates", g.x0, h - 8);
 
-    const sx = (i) => x0 + (x1 - x0) * (i / (MAX_UPDATES - 1));
-    const sy = (v) => y0 + (y1 - y0) * clamp01(v);
-
-    // draw inactive series faded, active on top and bold with a head dot
-    const entries = [...this.series.entries()].sort(
-      ([a], [b]) => (a === this.active ? 1 : 0) - (b === this.active ? 1 : 0)
+    const order = [...this.series.keys()].sort(
+      (a, b) => (a === this.active ? 1 : 0) - (b === this.active ? 1 : 0)
     );
-    for (const [id, s] of entries) {
+
+    // crosshair (drawn under the lines)
+    if (this.hover != null) {
+      const anyData = [...this.series.values()].some((s) => this.hover < s.data.length);
+      if (anyData) {
+        const x = g.sx(this.hover);
+        ctx.strokeStyle = rgba(ink, 0.22);
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(x, g.y1);
+        ctx.lineTo(x, g.y0);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    for (const id of order) {
+      const s = this.series.get(id);
       if (!s.data.length) continue;
       const isActive = id === this.active;
-      ctx.strokeStyle = withAlpha(s.color, isActive ? 1 : 0.32);
+      const color = this._cssVar(MODELS.find((m) => m.id === id).varName);
+
+      // area fill under the active line
+      if (isActive) {
+        const grad = ctx.createLinearGradient(0, g.y1, 0, g.y0);
+        grad.addColorStop(0, rgba(color, 0.22));
+        grad.addColorStop(1, rgba(color, 0));
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(g.sx(0), g.y0);
+        s.data.forEach((v, i) => ctx.lineTo(g.sx(i), g.sy(v)));
+        ctx.lineTo(g.sx(s.data.length - 1), g.y0);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // the line
+      ctx.strokeStyle = isActive ? color : rgba(color, 0.3);
       ctx.lineWidth = isActive ? 2.2 : 1.4;
       ctx.lineJoin = "round";
+      ctx.lineCap = "round";
       ctx.beginPath();
-      s.data.forEach((v, i) => (i ? ctx.lineTo(sx(i), sy(v)) : ctx.moveTo(sx(i), sy(v))));
+      s.data.forEach((v, i) => (i ? ctx.lineTo(g.sx(i), g.sy(v)) : ctx.moveTo(g.sx(i), g.sy(v))));
       ctx.stroke();
+
+      // head dot (+ pulse when running) and direct label on the active series
+      const i = s.data.length - 1;
+      const hx = g.sx(i), hy = g.sy(s.data[i]);
       if (isActive) {
-        const i = s.data.length - 1;
-        ctx.fillStyle = s.color;
+        if (this.running && !REDUCED) {
+          const r = 5 + 5 * Math.sin(this.pulse * Math.PI);
+          ctx.fillStyle = rgba(color, 0.18 * (1 - this.pulse));
+          ctx.beginPath();
+          ctx.arc(hx, hy, r + 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = surface;
         ctx.beginPath();
-        ctx.arc(sx(i), sy(s.data[i]), 3, 0, Math.PI * 2);
+        ctx.arc(hx, hy, 4.5, 0, Math.PI * 2);
         ctx.fill();
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(hx, hy, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        const label = `${this.labelOf(id)} ${Math.round(s.data[i] * 100)}%`;
+        ctx.font = "700 11px ui-monospace, SFMono-Regular, Menlo, monospace";
+        ctx.textAlign = hx > g.x1 - 70 ? "right" : "left";
+        ctx.textBaseline = "bottom";
+        ctx.fillStyle = color;
+        ctx.fillText(label, hx > g.x1 - 70 ? hx - 8 : hx + 8, hy - 6);
+        ctx.textBaseline = "middle";
+      }
+    }
+
+    // hover tooltip: every series' value at the hovered update
+    if (this.hover != null) {
+      const rows = order
+        .map((id) => ({ id, s: this.series.get(id) }))
+        .filter(({ s }) => this.hover < s.data.length)
+        .map(({ id, s }) => ({
+          id,
+          color: this._cssVar(MODELS.find((m) => m.id === id).varName),
+          v: s.data[this.hover],
+        }));
+      if (rows.length) {
+        const pad = 8, lh = 15, bw = 116, bh = pad * 2 + 14 + rows.length * lh;
+        let bx = g.sx(this.hover) + 10;
+        if (bx + bw > g.x1) bx = g.sx(this.hover) - bw - 10;
+        const by = g.y1 + 4;
+        ctx.fillStyle = rgba(surface, 0.96);
+        ctx.strokeStyle = rgba(ink, 0.12);
+        roundRect(ctx, bx, by, bw, bh, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.textAlign = "left";
+        ctx.fillStyle = muted;
+        ctx.font = "600 10px ui-monospace, monospace";
+        ctx.fillText(`update ${this.hover}`, bx + pad, by + pad + 5);
+        ctx.font = "600 11px ui-monospace, monospace";
+        rows.forEach((r, k) => {
+          const ry = by + pad + 14 + k * lh + 6;
+          ctx.fillStyle = r.color;
+          ctx.beginPath();
+          ctx.arc(bx + pad + 3, ry, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = ink;
+          ctx.fillText(this.labelOf(r.id), bx + pad + 12, ry);
+          ctx.textAlign = "right";
+          ctx.fillText(Math.round(r.v * 100) + "%", bx + bw - pad, ry);
+          ctx.textAlign = "left";
+        });
       }
     }
   }
 }
 
-// blend a hex or rgb color with an alpha, for gridlines/faded lines
-function withAlpha(color, alpha) {
+function rgba(color, alpha) {
+  color = color.trim();
   if (color.startsWith("#")) {
-    const n = parseInt(color.slice(1), 16);
-    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-    return `rgba(${r},${g},${b},${alpha})`;
+    let hex = color.slice(1);
+    if (hex.length === 3) hex = hex.split("").map((c) => c + c).join("");
+    const n = parseInt(hex, 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
   }
-  const m = color.match(/\d+/g);
+  const m = color.match(/[\d.]+/g);
   if (m && m.length >= 3) return `rgba(${m[0]},${m[1]},${m[2]},${alpha})`;
   return color;
 }
 
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
 // ---------------------------------------------------------------------------
-// UI
+// styles, native to al-folio via its --global-* variables
 // ---------------------------------------------------------------------------
 
 const CSS = `
-#${MOUNT} { --panel: rgba(127,127,127,.28); max-width: 42rem; margin: 1.8rem auto; font-variant-numeric: tabular-nums; color: inherit; }
-#${MOUNT} .bar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: .8rem; }
-#${MOUNT} .seg { display: inline-flex; border: 1px solid var(--panel); border-radius: 999px; overflow: hidden; }
-#${MOUNT} .seg button { font: inherit; font-weight: 600; font-size: .82rem; padding: .34rem .8rem; border: 0; background: transparent; color: inherit; cursor: pointer; transition: background .15s; }
-#${MOUNT} .seg button + button { border-left: 1px solid var(--panel); }
-#${MOUNT} .seg button:hover { background: rgba(127,127,127,.1); }
-#${MOUNT} .seg button.on { color: #fff; }
-#${MOUNT} .spacer { flex: 1 1 auto; }
-#${MOUNT} button.act { font: inherit; font-weight: 600; font-size: .82rem; padding: .34rem 1rem; border: 1px solid var(--panel); border-radius: 999px; background: transparent; color: inherit; cursor: pointer; transition: background .15s, border-color .15s; }
-#${MOUNT} button.act:hover { background: rgba(127,127,127,.1); }
-#${MOUNT} button.act.primary { border-color: transparent; color: #fff; }
-#${MOUNT} button.act:disabled { opacity: .45; cursor: default; }
-#${MOUNT} .panel { border: 1px solid var(--panel); border-radius: 12px; padding: .6rem .7rem .3rem; }
-#${MOUNT} canvas { display: block; width: 100%; height: 200px; }
-#${MOUNT} .foot { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin-top: .5rem; font-size: .8rem; }
-#${MOUNT} .readout { font-weight: 600; }
-#${MOUNT} .readout .muted { opacity: .55; font-weight: 400; }
-#${MOUNT} .badge { font-size: .68rem; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; padding: .12rem .5rem; border-radius: 999px; border: 1px solid var(--panel); opacity: .8; }
-#${MOUNT} .badge.live { color: #22c55e; border-color: rgba(34,197,94,.5); }
-#${MOUNT} .badge.preview { color: #f59e0b; border-color: rgba(245,158,11,.5); }
-#${MOUNT} .cap { margin-top: .55rem; font-size: .74rem; opacity: .62; line-height: 1.5; }
+#${MOUNT}{
+  --surface: var(--global-card-bg-color, #fff);
+  --ink: var(--global-text-color, #111);
+  --muted: var(--global-text-color-light, #777);
+  --line: var(--global-divider-color, rgba(0,0,0,.1));
+  --accent: var(--global-theme-color, #2a78d6);
+  --s1:#2a78d6; --s2:#008300; --s3:#e87ba4;
+  --track: color-mix(in srgb, var(--ink) 7%, transparent);
+  --elev: 0 1px 2px rgba(0,0,0,.05), 0 10px 30px -18px rgba(0,0,0,.35);
+  max-width: 40rem; margin: 2rem auto; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+html[data-theme="dark"] #${MOUNT}{ --s1:#3987e5; --s2:#008300; --s3:#d55181; }
+html[data-theme="light"] #${MOUNT}{ --s1:#2a78d6; --s2:#008300; --s3:#e87ba4; }
+@media (prefers-color-scheme: dark){
+  #${MOUNT}:not([data-forced]){ --s1:#3987e5; --s2:#008300; --s3:#d55181; }
+}
+#${MOUNT} *{ box-sizing: border-box; }
+#${MOUNT} .card{
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 16px; box-shadow: var(--elev); padding: 1.1rem 1.1rem .9rem;
+}
+#${MOUNT} .head{ display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; margin-bottom:1rem; }
+
+/* sliding segmented control */
+#${MOUNT} .seg{ position:relative; display:inline-flex; background:var(--track);
+  border-radius:11px; padding:3px; }
+#${MOUNT} .seg .thumb{ position:absolute; top:3px; bottom:3px; left:0; border-radius:9px;
+  background:var(--surface); box-shadow:0 1px 2px rgba(0,0,0,.18), 0 0 0 1px var(--line);
+  transition:transform .3s cubic-bezier(.32,.72,0,1), width .3s cubic-bezier(.32,.72,0,1); }
+#${MOUNT} .seg button{ position:relative; z-index:1; display:inline-flex; align-items:center;
+  gap:.42rem; font:inherit; font-weight:600; font-size:.82rem; letter-spacing:-.01em;
+  padding:.4rem .8rem; border:0; background:transparent; color:var(--muted); cursor:pointer;
+  border-radius:9px; transition:color .2s; }
+#${MOUNT} .seg button .dot{ width:.5rem; height:.5rem; border-radius:50%; background:currentColor; flex:none; }
+#${MOUNT} .seg button[aria-pressed="true"]{ color:var(--ink); }
+#${MOUNT} .seg button:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+#${MOUNT} .spacer{ flex:1 1 auto; }
+#${MOUNT} .actions{ display:flex; align-items:center; gap:.5rem; }
+#${MOUNT} button.icon{ display:inline-grid; place-items:center; width:2rem; height:2rem;
+  border:1px solid var(--line); border-radius:10px; background:transparent; color:var(--muted);
+  cursor:pointer; transition:background .15s, color .15s, border-color .15s; }
+#${MOUNT} button.icon:hover{ background:color-mix(in srgb, var(--ink) 6%, transparent); color:var(--ink); }
+#${MOUNT} button.train{ display:inline-flex; align-items:center; gap:.45rem; font:inherit;
+  font-weight:650; font-size:.84rem; letter-spacing:-.01em; padding:.44rem .95rem;
+  border:0; border-radius:11px; background:var(--accent); color:#fff; cursor:pointer;
+  box-shadow:0 1px 2px rgba(0,0,0,.12); transition:transform .12s ease, filter .15s, box-shadow .15s; }
+#${MOUNT} button.train:hover{ transform:translateY(-1px); filter:brightness(1.05);
+  box-shadow:0 4px 14px -4px color-mix(in srgb, var(--accent) 60%, transparent); }
+#${MOUNT} button.train:active{ transform:translateY(0); }
+#${MOUNT} button.train.paused{ background:transparent; color:var(--ink);
+  box-shadow:inset 0 0 0 1px var(--line); }
+#${MOUNT} button:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+#${MOUNT} svg{ display:block; }
+
+/* chart stage with floating HUD + badge */
+#${MOUNT} .stage{ position:relative; }
+#${MOUNT} canvas{ display:block; width:100%; height:210px; cursor:crosshair; }
+#${MOUNT} .hud{ position:absolute; top:2px; left:6px; pointer-events:none; }
+#${MOUNT} .hud .big{ font-size:1.9rem; font-weight:700; line-height:1; letter-spacing:-.02em; }
+#${MOUNT} .hud .sub{ font-size:.72rem; color:var(--muted); margin-top:.2rem; }
+#${MOUNT} .badge{ position:absolute; top:4px; right:4px; display:inline-flex; align-items:center;
+  gap:.32rem; font-size:.62rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  padding:.2rem .5rem; border-radius:999px; border:1px solid var(--line); color:var(--muted);
+  background:color-mix(in srgb, var(--surface) 80%, transparent); backdrop-filter:blur(4px); }
+#${MOUNT} .badge .led{ width:.44rem; height:.44rem; border-radius:50%; background:currentColor; }
+#${MOUNT} .badge.live{ color:var(--s2); }
+#${MOUNT} .badge.live .led{ animation: pomdpBlink 1.6s ease-in-out infinite; }
+#${MOUNT} .badge.preview{ color:#c98500; }
+@keyframes pomdpBlink{ 0%,100%{opacity:1} 50%{opacity:.35} }
+
+#${MOUNT} .cap{ margin-top:.7rem; padding-top:.7rem; border-top:1px solid var(--line);
+  font-size:.73rem; color:var(--muted); line-height:1.55; }
+#${MOUNT} .cap a{ color:var(--accent); text-decoration:none; }
+#${MOUNT} .cap a:hover{ text-decoration:underline; }
+@media (prefers-reduced-motion: reduce){
+  #${MOUNT} .seg .thumb, #${MOUNT} button.train{ transition:none; }
+  #${MOUNT} .badge.live .led{ animation:none; }
+}
 `;
+
+const ICON_PLAY = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5v9l7-4.5z" fill="currentColor"/></svg>';
+const ICON_PAUSE = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="1.5" width="2.6" height="9" rx="1" fill="currentColor"/><rect x="6.9" y="1.5" width="2.6" height="9" rx="1" fill="currentColor"/></svg>';
+const ICON_RESET = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M11.5 7a4.5 4.5 0 1 1-1.32-3.18"/><path d="M11.2 1.6v2.6H8.6"/></svg>';
 
 function mount(root) {
   const style = el("style");
   style.textContent = CSS;
   root.appendChild(style);
 
-  const bar = el("div", "bar");
+  const card = el("div", "card");
+
+  const head = el("div", "head");
   const seg = el("div", "seg");
+  const thumb = el("div", "thumb");
+  seg.appendChild(thumb);
   const modelBtns = MODELS.map((m) => {
     const b = el("button");
-    b.textContent = m.label;
-    b.dataset.id = m.id;
+    b.type = "button";
+    b.setAttribute("aria-pressed", "false");
     b.title = m.note;
+    b.dataset.id = m.id;
+    b.innerHTML = `<span class="dot" style="color:var(${m.varName})"></span>${m.label}`;
     seg.appendChild(b);
     return b;
   });
   const spacer = el("div", "spacer");
-  const trainBtn = el("button", "act primary");
-  trainBtn.textContent = "Train";
-  const resetBtn = el("button", "act");
-  resetBtn.textContent = "Reset";
-  bar.append(seg, spacer, trainBtn, resetBtn);
+  const actions = el("div", "actions");
+  const resetBtn = el("button", "icon");
+  resetBtn.type = "button";
+  resetBtn.setAttribute("aria-label", "Reset this model");
+  resetBtn.innerHTML = ICON_RESET;
+  const trainBtn = el("button", "train");
+  trainBtn.type = "button";
+  trainBtn.innerHTML = `${ICON_PLAY}<span class="txt">Train</span>`;
+  actions.append(resetBtn, trainBtn);
+  head.append(seg, spacer, actions);
 
-  const panel = el("div", "panel");
-  const canvas = el("canvas");
-  panel.appendChild(canvas);
-
-  const foot = el("div", "foot");
-  const readout = el("div", "readout");
+  const stage = el("div", "stage");
+  const hud = el("div", "hud");
+  hud.innerHTML = '<div class="big">&nbsp;</div><div class="sub"></div>';
   const badge = el("div", "badge");
-  foot.append(readout, badge);
+  const canvas = el("canvas");
+  stage.append(canvas, hud, badge);
 
   const cap = el("div", "cap");
   cap.innerHTML =
-    "Same PPO loop, compiled to WebAssembly by " +
+    "The same PPO update, compiled to WebAssembly by " +
     '<a href="https://github.com/noahfarr/whlo">whlo</a>. Only the torso changes ' +
-    "between the buttons — the algorithm never knows which network it is training.";
+    "between the buttons, and the algorithm never knows which network it is training.";
 
-  root.append(bar, panel, foot, cap);
-  return { modelBtns, trainBtn, resetBtn, canvas, readout, badge };
+  card.append(head, stage, cap);
+  root.appendChild(card);
+  return { seg, thumb, modelBtns, resetBtn, trainBtn, canvas, hud, badge };
 }
 
 // ---------------------------------------------------------------------------
@@ -323,45 +541,63 @@ async function main() {
   const root = document.getElementById(MOUNT);
   if (!root) return;
   const ui = mount(root);
-  const plot = new Plot(ui.canvas);
+  const labelOf = (id) => MODELS.find((m) => m.id === id).label;
+  const plot = new Plot(ui.canvas, root, labelOf);
 
   const state = {
     modelId: MODELS[0].id,
     running: false,
-    backends: new Map(), // modelId -> backend
-    metrics: new Map(), // modelId -> latest value
+    backends: new Map(),
+    metrics: new Map(),
+    shown: new Map(), // animated hero value per model
   };
 
-  const colorOf = (id) => MODELS.find((m) => m.id === id).color;
+  const bigEl = ui.hud.querySelector(".big");
+  const subEl = ui.hud.querySelector(".sub");
+
+  function positionThumb() {
+    const btn = ui.modelBtns.find((b) => b.dataset.id === state.modelId);
+    if (!btn) return;
+    ui.thumb.style.width = btn.offsetWidth + "px";
+    ui.thumb.style.transform = `translateX(${btn.offsetLeft - 3}px)`;
+  }
 
   function paintSelector() {
-    ui.modelBtns.forEach((b) => {
-      const on = b.dataset.id === state.modelId;
-      b.classList.toggle("on", on);
-      b.style.background = on ? colorOf(b.dataset.id) : "";
-    });
-    ui.trainBtn.style.background = state.running ? "" : colorOf(state.modelId);
-    ui.trainBtn.classList.toggle("primary", !state.running);
+    ui.modelBtns.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.id === state.modelId)));
+    positionThumb();
     plot.setActive(state.modelId);
+    const running = state.running;
+    ui.trainBtn.classList.toggle("paused", running);
+    ui.trainBtn.querySelector(".txt").textContent = running ? "Pause" : "Train";
+    ui.trainBtn.firstChild.outerHTML = running ? ICON_PAUSE : ICON_PLAY;
   }
 
   function setBadge(live) {
     ui.badge.className = "badge " + (live ? "live" : "preview");
-    ui.badge.textContent = live ? "live in-browser" : "illustrative preview";
+    ui.badge.innerHTML = `<span class="led"></span>${live ? "live in-browser" : "preview"}`;
   }
 
-  function setReadout() {
+  function renderHud(target) {
     const b = state.backends.get(state.modelId);
-    const m = state.metrics.get(state.modelId);
-    const label = MODELS.find((x) => x.id === state.modelId).label;
     const upd = b ? b.updates : 0;
-    ui.readout.innerHTML =
-      `${label} <span class="muted">· update ${upd} · ` +
-      (m == null ? "—" : `${Math.round(m * 100)}% ${METRIC_LABEL}`) +
-      "</span>";
+    subEl.textContent = `${labelOf(state.modelId)} · ${METRIC_LABEL} · update ${upd}`;
+    if (target == null) {
+      bigEl.innerHTML = "&nbsp;";
+      return;
+    }
+    // count-up toward target
+    const cur = state.shown.get(state.modelId) ?? target;
+    if (REDUCED || Math.abs(cur - target) < 0.004) {
+      state.shown.set(state.modelId, target);
+      bigEl.textContent = Math.round(target * 100) + "%";
+    } else {
+      const next = cur + (target - cur) * 0.3;
+      state.shown.set(state.modelId, next);
+      bigEl.textContent = Math.round(next * 100) + "%";
+      requestAnimationFrame(() => renderHud(state.metrics.get(state.modelId)));
+    }
   }
 
-  // lazily build a backend for a model: try real whlo modules, else preview
   async function backendFor(modelId) {
     if (state.backends.has(modelId)) return state.backends.get(modelId);
     let backend;
@@ -371,39 +607,38 @@ async function main() {
       backend = new MockBackend(modelId);
     }
     state.backends.set(modelId, backend);
-    plot.ensure(modelId, colorOf(modelId));
+    plot.ensure(modelId);
     return backend;
   }
 
   async function loop() {
     const backend = await backendFor(state.modelId);
     setBadge(backend.live);
-    // preview steps a few times per frame to feel responsive; real training is
-    // heavier, so one step per frame keeps the tab live.
-    const perFrame = backend.live ? 1 : 3;
+    plot.setRunning(true);
+    const perFrame = backend.live ? 1 : 2;
     while (state.running && backend.updates < MAX_UPDATES) {
       let metric;
       for (let i = 0; i < perFrame && backend.updates < MAX_UPDATES; i++) {
         metric = backend.step();
-        plot.push(state.modelId, colorOf(state.modelId), metric);
+        plot.push(state.modelId, metric);
       }
       state.metrics.set(state.modelId, metric);
-      setReadout();
+      renderHud(metric);
       await raf();
     }
+    plot.setRunning(false);
     if (backend.updates >= MAX_UPDATES) stop();
   }
 
   function start() {
     if (state.running) return;
     state.running = true;
-    ui.trainBtn.textContent = "Pause";
     paintSelector();
     loop();
   }
   function stop() {
     state.running = false;
-    ui.trainBtn.textContent = "Train";
+    plot.setRunning(false);
     paintSelector();
   }
 
@@ -413,8 +648,9 @@ async function main() {
     const backend = await backendFor(state.modelId);
     backend.reset(state.modelId);
     state.metrics.delete(state.modelId);
+    state.shown.delete(state.modelId);
     plot.clear(state.modelId);
-    setReadout();
+    renderHud(null);
   });
   ui.modelBtns.forEach((b) =>
     b.addEventListener("click", async () => {
@@ -423,15 +659,17 @@ async function main() {
       paintSelector();
       const backend = await backendFor(state.modelId);
       setBadge(backend.live);
-      setReadout();
+      renderHud(state.metrics.get(state.modelId) ?? null);
     })
   );
+  window.addEventListener("resize", positionThumb);
 
-  // first paint
   paintSelector();
   const first = await backendFor(state.modelId);
   setBadge(first.live);
-  setReadout();
+  renderHud(null);
+  // thumb needs a layout pass before it can measure button geometry
+  requestAnimationFrame(positionThumb);
 }
 
 main();
