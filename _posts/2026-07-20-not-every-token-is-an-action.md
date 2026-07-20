@@ -176,11 +176,12 @@ plus a carry, and returns action logits; the policy turns logits into a distribu
 the algorithm does not know or care what the network is.
 
 If LLM RL really is just POMDP RL, a language model should slot straight into that
-codebase. So: letter-level Wordle, a clean little POMDP where one action is one letter,
-the secret word is hidden state, and the observation is all-zero except on the step that
-completes a guess, so interpreting the feedback requires remembering your own past
-actions. Load a pretrained Qwen3-0.6B, wrap it in LoRA, and hand it to the same
-`RecurrentPPO` class that would otherwise train a GRU:
+codebase. So: Wordle, a clean little POMDP. One action is one tool call carrying the
+turn's guess; back comes an observation reporting what the guess earned, which letters
+are green, which are yellow and where, and how many turns remain. The secret word is
+hidden state, and no single observation reveals it, so playing well means integrating
+the feedback from every guess so far. Load a pretrained Qwen3-0.6B, wrap it in LoRA,
+and hand it to the same `RecurrentPPO` class that would otherwise train a GRU:
 
 ```python
 network = Network(
@@ -201,7 +202,7 @@ algorithm = RecurrentPPO(
 
 Not one line of algorithm code knows an LLM is involved. And the correspondence goes all
 the way down. "Tokens are actions" is literal here: the action embedding and the actor's
-readout are initialised from the LLM's own token embeddings for the letters a to z. The
+readout are initialised from the LLM's own token embeddings. The
 carry the algorithm threads through time is a GRU's hidden state in one configuration
 and the transformer's KV cache in this one; the algorithm cannot tell the difference,
 and it should not, because both are playing the same role, a running sufficient
