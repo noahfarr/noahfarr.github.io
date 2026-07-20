@@ -18,7 +18,9 @@ the loss, stops being folklore and becomes forced.
 
 The way there is a ladder of three formalisms. RLHF started as a bandit. It got refined
 into a token-level MDP. That frame cracks in two distinct ways, and underneath the
-cracks is the POMDP that was there the whole time.
+cracks is the POMDP that was there the whole time. At the end I'll put the claim to a
+practical test: if the frame is right, an LLM should drop into a completely standard RL
+implementation with no adaptations at all. It does.
 
 ## Where RLHF starts: a bandit
 
@@ -100,9 +102,8 @@ $$
 h_t = (o_0, a_1, o_1, \dots, o_t), \qquad a_{t+1} \sim \pi_\theta(\cdot \mid h_t).
 $$
 
-Formally a history is a sequence of $$(o, a, r)$$ triples. The policy only ever reads
-the $$(o, a)$$ part; reward is what the learning algorithm consumes, not something fed
-back in as input, so I drop $$r$$ from $$h_t$$.
+Strictly the history carries rewards too, $$(o, a, r)$$ triples rather than pairs.
+Nothing below needs them, so I leave $$r$$ out to keep the notation light.
 
 And this is, concretely, what an LLM agent already is. Every prompt token, every tool
 result, every prior turn is $$h_t$$, and attention over the full context stands in for
@@ -165,13 +166,66 @@ rollouts that differ in what happened ten tool calls ago but share the same last
 output are different histories, and a value function that only reads the last turn will
 alias them, for exactly the reason a POMDP says it will.
 
+## Dropping an LLM into a standard RL stack
+
+Here is the practical test. I keep a JAX RL codebase around with the usual suspects,
+DQN, PPO, SAC, GRPO, plus recurrent variants of each for partially observable
+environments. The recurrent algorithms are written against exactly the interface the
+POMDP prescribes: the network takes the sequence of observations and previous actions
+plus a carry, and returns action logits; the policy turns logits into a distribution;
+the algorithm does not know or care what the network is.
+
+If LLM RL really is just POMDP RL, a language model should slot straight into that
+codebase. So: letter-level Wordle, a clean little POMDP where one action is one letter,
+the secret word is hidden state, and the observation is all-zero except on the step that
+completes a guess, so interpreting the feedback requires remembering your own past
+actions. Load a pretrained Qwen3-0.6B, wrap it in LoRA, and hand it to the same
+`RecurrentPPO` class that would otherwise train a GRU:
+
+```python
+network = Network(
+    feature_extractor=TokenFeatureExtractor(num_actions, hidden_size),
+    torso=LoRA(block=qwen3, params=pretrained, rank=8, alpha=16.0),
+    head=ActorCritic(actor=nn.Dense(num_actions), critic=nn.Dense(1)),
+)
+
+algorithm = RecurrentPPO(
+    cfg=cfg,
+    environment=wordle,
+    environment_params=params,
+    network=network,  # the LLM is just the torso
+    policy=policies.categorical,
+    optimizer=optimizer,
+)
+```
+
+Not one line of algorithm code knows an LLM is involved. And the correspondence goes all
+the way down. "Tokens are actions" is literal here: the action embedding and the actor's
+readout are initialised from the LLM's own token embeddings for the letters a to z. The
+carry the algorithm threads through time is a GRU's hidden state in one configuration
+and the transformer's KV cache in this one; the algorithm cannot tell the difference,
+and it should not, because both are playing the same role, a running sufficient
+statistic of the history. The critic rides on the same torso, so the value estimate
+conditions on the full history for free, which is exactly what the aliasing argument
+above demanded. And swap `RecurrentPPO` for `RecurrentGRPO` and nothing else changes.
+
+Notice also what happened to the masking question: it dissolved. This implementation is
+POMDP-native, so observations arrive on their own input channel and the action sequence
+contains only actions. There is nothing to mask out of the loss, because observations
+were never mixed into the action stream in the first place. Loss masking is the
+correction you need when $$h_t$$ is stored as one flat token buffer; write the POMDP
+down structurally and the bug it corrects cannot even be expressed.
+
 ## Why I like this framing
 
 Nothing here changes what a careful implementation already does. Good agentic RL
 codebases already mask the loss, scope the KL, and condition their value estimates on
 the full transcript. What the POMDP buys is that these stop being independent tricks,
 each rediscovered and re-justified per codebase, and become one fact about the problem,
-applied consistently: not every token is an action, and only actions get gradients. If
+applied consistently: not every token is an action, and only actions get gradients. It
+also buys the other direction: the moment an LLM is just a sequence model behind a POMDP
+interface, everything the RL community has built for partially observable problems
+applies to it verbatim, no bespoke "LLM RL" framework required. If
 you think a piece of this is wrong, or you have a setting where the split does not hold
 cleanly, I would genuinely like to hear about it, so [get in touch](/).
 
