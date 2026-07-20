@@ -185,8 +185,8 @@ and hand it to the same `RecurrentPPO` class that would otherwise train a GRU:
 
 ```python
 network = Network(
-    feature_extractor=TokenFeatureExtractor(num_actions, hidden_size),
-    torso=LoRA(block=qwen3, params=pretrained, rank=8, alpha=16.0),
+    feature_extractor=Encoder(num_actions, hidden_size),
+    torso=LoRA(model=Qwen3(), rank=8, alpha=16.0),
     head=ActorCritic(actor=nn.Dense(num_actions), critic=nn.Dense(1)),
 )
 
