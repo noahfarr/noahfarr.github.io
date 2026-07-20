@@ -30,7 +30,7 @@ const MODELS = [
 ];
 
 const MAX_UPDATES = 160; // stop each run here so the plot stays readable
-const METRIC_LABEL = "episodes solved";
+const METRIC_LABEL = "Episodes solved";
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ---------------------------------------------------------------------------
@@ -253,8 +253,8 @@ class Plot {
       ctx.fillText(Math.round(v * 100) + "%", g.x0 - 8, y);
     }
     ctx.fillStyle = muted;
-    ctx.textAlign = "left";
-    ctx.fillText("training updates", g.x0, h - 8);
+    ctx.textAlign = "center";
+    ctx.fillText("Training updates", (g.x0 + g.x1) / 2, h - 8);
 
     const order = [...this.series.keys()].sort(
       (a, b) => (a === this.active ? 1 : 0) - (b === this.active ? 1 : 0)
@@ -610,7 +610,7 @@ async function main() {
   function renderHud(target) {
     const b = state.backends.get(state.modelId);
     const upd = b ? b.updates : 0;
-    subEl.textContent = `${labelOf(state.modelId)} · ${METRIC_LABEL} · update ${upd}`;
+    subEl.textContent = `${labelOf(state.modelId)} · ${METRIC_LABEL} · Update ${upd}`;
     if (target == null) {
       bigEl.innerHTML = "&nbsp;";
       return;
