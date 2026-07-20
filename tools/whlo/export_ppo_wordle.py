@@ -58,7 +58,34 @@ import environments
 import policies
 from environments.wrappers import Vectorize
 from algorithms.recurrent_ppo import RecurrentPPO, RecurrentPPOConfig
-from networks import ActorCritic, FeatureExtractor, Network, Projection, RNN, Stack
+from networks import (
+    ActorCritic,
+    FeatureExtractor,
+    Network,
+    Projection,
+    RNN,
+    SelfAttention,
+    Stack,
+    causal_attention_mask,
+)
+
+
+def build_torso(args):
+    """The torso is the only thing that changes between demo networks; the PPO
+    algorithm below is identical regardless. gru exercises grad-through-scan (BPTT);
+    attention exercises the KV-cache concat/slice + dot_product_attention path."""
+    if args.torso == "gru":
+        recurrent = RNN(cell=nn.GRUCell(features=args.hidden))
+    elif args.torso == "attention":
+        recurrent = SelfAttention(
+            features=args.hidden,
+            num_heads=args.num_heads,
+            context_length=args.num_steps,
+            attention_mask=causal_attention_mask,
+        )
+    else:
+        raise ValueError(args.torso)
+    return Stack((Projection(args.hidden, activation=nn.relu), recurrent))
 
 
 def build_algorithm(args):
@@ -79,12 +106,7 @@ def build_algorithm(args):
             # actions alongside the observation. Same as the real recipe.
             action_extractor=lambda action: jax.nn.one_hot(action, num_actions),
         ),
-        torso=Stack(
-            (
-                Projection(args.hidden, activation=nn.relu),
-                RNN(cell=nn.GRUCell(features=args.hidden)),
-            )
-        ),
+        torso=build_torso(args),
         head=ActorCritic(actor=nn.Dense(num_actions), critic=nn.Dense(1)),
     )
 
@@ -121,6 +143,8 @@ def leaf_layout(avals):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--torso", choices=["gru", "attention"], default="gru")
+    parser.add_argument("--num-heads", type=int, default=4)
     parser.add_argument("--num-words", type=int, default=16)
     parser.add_argument("--hidden", type=int, default=16)
     parser.add_argument("--num-envs", type=int, default=4)
