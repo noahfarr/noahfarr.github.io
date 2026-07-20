@@ -9,18 +9,18 @@ featured: true
 ---
 
 This post is an argument rather than a result. RL on LLMs is usually described as a
-Markov decision process over tokens, and I think the honest frame is a partially
-observable one: output tokens are actions, prompts and tool results are observations,
-and the context window is the history a POMDP policy conditions on. In one sentence: the
-moment anything other than the policy can write into the transcript, you are in a POMDP,
-and once you admit that, a family of standard "tricks", like masking tool outputs out of
-the loss, stops being folklore and becomes forced.
+Markov decision process over tokens. I think the honest frame is a partially observable
+one, where output tokens are actions, prompts and tool results are observations, and the
+context window is the history a POMDP policy conditions on. In one sentence, the moment
+anything other than the policy can write into the transcript, you are in a POMDP, and
+once you admit that, a family of standard "tricks", like masking tool outputs out of the
+loss, stops being folklore and becomes forced.
 
 The way there is a ladder of three formalisms. RLHF started as a bandit. It got refined
 into a token-level MDP. That frame cracks in two distinct ways, and underneath the
 cracks is the POMDP that was there the whole time. At the end I'll put the claim to a
-practical test: if the frame is right, an LLM should drop into a completely standard RL
-implementation with no adaptations at all. It does.
+practical test. If the frame is right, an LLM should drop into a completely standard RL
+implementation with no adaptations at all, and it does.
 
 ## Where RLHF starts: a bandit
 
@@ -34,8 +34,8 @@ $$
 
 This is not a strawman; it is exactly how DPO was originally derived, with the entire
 response treated as a single arm {% cite rafailov2024from --file references %}. And it
-is fine, as far as it goes. But it flattens everything that happens inside the response:
-one reward covers every token equally, whether that token mattered or not.
+is fine, as far as it goes. But it flattens everything that happens inside the response.
+One reward covers every token equally, whether that token mattered or not.
 
 ## One step finer: a token-level MDP
 
@@ -49,7 +49,7 @@ $$
 with reward landing once, at the last token. This is the MDP that PPO-style RLHF
 actually implements, and it is the lens under which DPO's implicit reward turns out to
 be a Q-function {% cite rafailov2024from --file references %}. Note that it is Markovian
-by construction: the state _is_ the entire history, so there is nothing hidden for the
+by construction. The state _is_ the entire history, so there is nothing hidden for the
 policy to miss.
 
 ## The catch: two cracks
@@ -58,8 +58,8 @@ The token MDP breaks in two distinct ways, and they are worth separating, becaus
 one of them can be fixed with a better algorithm.
 
 1. **It quietly collapses back into the bandit.** The sequential state only earns its
-   keep if something assigns credit at the token level. Take GRPO: sample a group of
-   $$G$$ responses per prompt, score each one, normalise within the group, and hand
+   keep if something assigns credit at the token level. Take GRPO, which samples a group
+   of $$G$$ responses per prompt, scores each one, normalises within the group, and hands
    every token in a response the same advantage {% cite shao2024deepseekmath --file references %}:
 
    $$
@@ -75,8 +75,8 @@ one of them can be fixed with a better algorithm.
 2. **It has no slot for a token the policy did not choose.** The transition
    $$s_{t+1} = s_t \oplus a_t$$ assumes every token past the prompt was sampled from
    $$\pi_\theta$$. In a single uninterrupted completion that is true. The moment a tool
-   result lands in the transcript, or a user replies, it is false: those tokens were
-   never drawn from any policy. The transition would need to read
+   result lands in the transcript, or a user replies, it is false, because those tokens
+   were never drawn from any policy. The transition would need to read
    $$s_{t+1} = s_t \oplus a_t \oplus o_{t+1}$$, with $$o_{t+1}$$ arriving from outside,
    and the token MDP simply has no name for $$o_{t+1}$$.
 
@@ -86,7 +86,7 @@ hole in the formalism itself, and it is the door to the POMDP.
 ## The idea: it was a POMDP all along
 
 A POMDP makes the missing distinction primitive. There is a true state the agent never
-sees directly: the contents of files it has not opened, the bug behind a failing test,
+sees directly, the contents of files it has not opened, the bug behind a failing test,
 the user's actual intent. Acting changes that state, and observations leak it:
 
 $$
@@ -140,15 +140,15 @@ backed into the right formalism by brute-force concatenation.
 
 Once observation and action are different objects, several things that usually get
 presented as engineering folklore become consequences you can read off the formalism.
-They are all the same one-line fact, worn three ways: $$\pi_\theta(o \mid h)$$ is not a
-thing. The policy has no distribution over tokens it did not emit.
+They are all the same one-line fact, worn three ways. The quantity $$\pi_\theta(o \mid h)$$
+is not a thing, because the policy has no distribution over tokens it did not emit.
 
 1. **Loss masking.** There is no policy gradient to compute on a tool-output token,
    because the policy never chose it. Masking prompt, tool-result, and other-turn tokens
    out of the loss is not a stabilisation trick; it is declining to differentiate a
    quantity that was never defined. Agent-R1 builds exactly this as an explicit action
-   mask separating agent-generated tokens from environment feedback, and ablates it:
-   with the masks disabled, their average score drops from 0.372 to 0.302 under PPO, and
+   mask separating agent-generated tokens from environment feedback, and ablates it.
+   With the masks disabled, their average score drops from 0.372 to 0.302 under PPO, and
    from 0.388 to 0.372 under GRPO {% cite cheng2025agentr1 --file references %}. Same
    architecture, same data, the only difference is whether observations are treated as
    actions.
@@ -160,7 +160,7 @@ thing. The policy has no distribution over tokens it did not emit.
    what the policy would have sampled between updates. On a token that was never sampled
    from any policy, old or new, there is no shift to correct.
 
-And one consequence a level up from the loss: a value or advantage estimate at an action
+And one consequence a level up from the loss. A value or advantage estimate at an action
 token has to condition on the whole history, not just the latest observation. Two
 rollouts that differ in what happened ten tool calls ago but share the same last tool
 output are different histories, and a value function that only reads the last turn will
@@ -171,14 +171,14 @@ alias them, for exactly the reason a POMDP says it will.
 Here is the practical test. I keep a JAX RL codebase around with the usual suspects,
 DQN, PPO, SAC, GRPO, plus recurrent variants of each for partially observable
 environments. The recurrent algorithms are written against exactly the interface the
-POMDP prescribes: the network takes the sequence of observations and previous actions
-plus a carry, and returns action logits; the policy turns logits into a distribution;
+POMDP prescribes. The network takes the sequence of observations and previous actions
+plus a carry and returns action logits, the policy turns logits into a distribution, and
 the algorithm does not know or care what the network is.
 
 If LLM RL really is just POMDP RL, a language model should slot straight into that
-codebase. So: Wordle, a clean little POMDP. One action is one tool call carrying the
-turn's guess; back comes an observation reporting what the guess earned, which letters
-are green, which are yellow and where, and how many turns remain. The secret word is
+codebase. So take Wordle, a clean little POMDP. One action is one tool call carrying the
+turn's guess, and back comes an observation reporting what the guess earned, which
+letters are green, which are yellow and where, and how many turns remain. The secret word is
 hidden state, and no single observation reveals it, so playing well means integrating
 the feedback from every guess so far. Load a pretrained Qwen3-0.6B, wrap it in LoRA,
 and hand it to the same `RecurrentPPO` class that would otherwise train a GRU:
@@ -201,20 +201,20 @@ algorithm = RecurrentPPO(
 ```
 
 Not one line of algorithm code knows an LLM is involved. And the correspondence goes all
-the way down. "Tokens are actions" is literal here: the action embedding and the actor's
-readout are initialised from the LLM's own token embeddings. The
-carry the algorithm threads through time is a GRU's hidden state in one configuration
-and the transformer's KV cache in this one; the algorithm cannot tell the difference,
-and it should not, because both are playing the same role, a running sufficient
+the way down. "Tokens are actions" is literal here, since the action embedding and the
+actor's readout are initialised from the LLM's own token embeddings. The carry the
+algorithm threads through time is a GRU's hidden state in one configuration and the
+transformer's KV cache in this one, and the algorithm cannot tell the difference,
+nor should it, because both are playing the same role, a running sufficient
 statistic of the history. The critic rides on the same torso, so the value estimate
 conditions on the full history for free, which is exactly what the aliasing argument
 above demanded. And swap `RecurrentPPO` for `RecurrentGRPO` and nothing else changes.
 
-Notice also what happened to the masking question: it dissolved. This implementation is
+Notice also what happened to the masking question. It dissolved. This implementation is
 POMDP-native, so observations arrive on their own input channel and the action sequence
 contains only actions. There is nothing to mask out of the loss, because observations
 were never mixed into the action stream in the first place. Loss masking is the
-correction you need when $$h_t$$ is stored as one flat token buffer; write the POMDP
+correction you need when $$h_t$$ is stored as one flat token buffer. Write the POMDP
 down structurally and the bug it corrects cannot even be expressed.
 
 <figure style="margin: 1.8rem 0;">
