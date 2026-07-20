@@ -25,6 +25,8 @@ const MODELS = [
   { id: "gru", label: "GRU", varName: "--s1", note: "sequential scan · BPTT" },
   { id: "min_gru", label: "MinGRU", varName: "--s2", note: "associative scan" },
   { id: "attention", label: "Attention", varName: "--s3", note: "KV-cache attention" },
+  // revealed only after a policy is uploaded; compiled from the user's own modules
+  { id: "custom", label: "Yours", varName: "--s4", note: "uploaded policy", custom: true },
 ];
 
 const MAX_UPDATES = 160; // stop each run here so the plot stays readable
@@ -79,19 +81,27 @@ class WhloBackend {
     this.metricIndex = metricIndex;
     this.reset();
   }
-  static async load(modelId) {
+  // compile a StableHLO init + train_step pair; used for both bundled models and
+  // uploaded policies, which is why the compiler import lives here.
+  static async build(initSrc, stepSrc, layout) {
     const { compile, initCompiler } = await import(WHLO);
     await initCompiler();
+    const [initExe, stepExe] = await Promise.all([compile(initSrc), compile(stepSrc)]);
+    const metricIndex =
+      layout && layout.metric_index != null ? layout.metric_index : stepExe.outputs.length - 1;
+    return new WhloBackend(compile, initExe, stepExe, metricIndex);
+  }
+  static async load(modelId) {
     const dir = MODEL_DIR(modelId);
     const [initSrc, stepSrc, layout] = await Promise.all([
       fetch(`${dir}/init.mlir`).then((r) => (r.ok ? r.text() : Promise.reject(r.status))),
       fetch(`${dir}/train_step.mlir`).then((r) => (r.ok ? r.text() : Promise.reject(r.status))),
       fetch(`${dir}/layout.json`).then((r) => (r.ok ? r.json() : null)),
     ]);
-    const [initExe, stepExe] = await Promise.all([compile(initSrc), compile(stepSrc)]);
-    const metricIndex =
-      layout && layout.metric_index != null ? layout.metric_index : stepExe.outputs.length - 1;
-    return new WhloBackend(compile, initExe, stepExe, metricIndex);
+    return WhloBackend.build(initSrc, stepSrc, layout);
+  }
+  static fromSources(initSrc, stepSrc, layout) {
+    return WhloBackend.build(initSrc, stepSrc, layout);
   }
   reset() {
     this.state = call(this.initExe, [randKey()]);
@@ -401,17 +411,17 @@ const CSS = `
   --muted: var(--global-text-color-light, #777);
   --line: var(--global-divider-color, rgba(0,0,0,.1));
   --accent: var(--global-theme-color, #2a78d6);
-  --s1:#2a78d6; --s2:#008300; --s3:#e87ba4;
+  --s1:#2a78d6; --s2:#008300; --s3:#e87ba4; --s4:#eda100;
   --track: color-mix(in srgb, var(--ink) 7%, transparent);
   --elev: 0 1px 2px rgba(0,0,0,.05), 0 10px 30px -18px rgba(0,0,0,.35);
   max-width: 40rem; margin: 2rem auto; color: var(--ink);
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
-html[data-theme="dark"] #${MOUNT}{ --s1:#3987e5; --s2:#008300; --s3:#d55181; }
-html[data-theme="light"] #${MOUNT}{ --s1:#2a78d6; --s2:#008300; --s3:#e87ba4; }
+html[data-theme="dark"] #${MOUNT}{ --s1:#3987e5; --s2:#008300; --s3:#d55181; --s4:#c98500; }
+html[data-theme="light"] #${MOUNT}{ --s1:#2a78d6; --s2:#008300; --s3:#e87ba4; --s4:#eda100; }
 @media (prefers-color-scheme: dark){
-  #${MOUNT}:not([data-forced]){ --s1:#3987e5; --s2:#008300; --s3:#d55181; }
+  #${MOUNT}:not([data-forced]){ --s1:#3987e5; --s2:#008300; --s3:#d55181; --s4:#c98500; }
 }
 #${MOUNT} *{ box-sizing: border-box; }
 #${MOUNT} .card{
@@ -468,6 +478,10 @@ html[data-theme="light"] #${MOUNT}{ --s1:#2a78d6; --s2:#008300; --s3:#e87ba4; }
 #${MOUNT} .badge.preview{ color:#c98500; }
 @keyframes pomdpBlink{ 0%,100%{opacity:1} 50%{opacity:.35} }
 
+#${MOUNT} .msg{ min-height:1.1rem; margin-top:.5rem; font-size:.74rem; color:var(--muted); }
+#${MOUNT} .msg.err{ color:#c98500; }
+#${MOUNT} .msg.busy{ color:var(--accent); }
+#${MOUNT} input[type=file]{ display:none; }
 #${MOUNT} .cap{ margin-top:.7rem; padding-top:.7rem; border-top:1px solid var(--line);
   font-size:.73rem; color:var(--muted); line-height:1.55; }
 #${MOUNT} .cap a{ color:var(--accent); text-decoration:none; }
@@ -481,6 +495,7 @@ html[data-theme="light"] #${MOUNT}{ --s1:#2a78d6; --s2:#008300; --s3:#e87ba4; }
 const ICON_PLAY = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5v9l7-4.5z" fill="currentColor"/></svg>';
 const ICON_PAUSE = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="1.5" width="2.6" height="9" rx="1" fill="currentColor"/><rect x="6.9" y="1.5" width="2.6" height="9" rx="1" fill="currentColor"/></svg>';
 const ICON_RESET = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M11.5 7a4.5 4.5 0 1 1-1.32-3.18"/><path d="M11.2 1.6v2.6H8.6"/></svg>';
+const ICON_UPLOAD = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V2.6"/><path d="M4.4 5 7 2.4 9.6 5"/><path d="M2.5 9.5v1a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5v-1"/></svg>';
 
 function mount(root) {
   const style = el("style");
@@ -500,11 +515,22 @@ function mount(root) {
     b.title = m.note;
     b.dataset.id = m.id;
     b.innerHTML = `<span class="dot" style="color:var(${m.varName})"></span>${m.label}`;
+    if (m.custom) b.style.display = "none"; // revealed after an upload succeeds
     seg.appendChild(b);
     return b;
   });
+  const customBtn = modelBtns.find((b) => b.dataset.id === "custom");
   const spacer = el("div", "spacer");
   const actions = el("div", "actions");
+  const uploadBtn = el("button", "icon");
+  uploadBtn.type = "button";
+  uploadBtn.setAttribute("aria-label", "Upload your own policy");
+  uploadBtn.title = "Upload your own policy (init.mlir + train_step.mlir)";
+  uploadBtn.innerHTML = ICON_UPLOAD;
+  const fileInput = el("input");
+  fileInput.type = "file";
+  fileInput.accept = ".mlir,.json,application/json";
+  fileInput.multiple = true;
   const resetBtn = el("button", "icon");
   resetBtn.type = "button";
   resetBtn.setAttribute("aria-label", "Reset this model");
@@ -512,7 +538,7 @@ function mount(root) {
   const trainBtn = el("button", "train");
   trainBtn.type = "button";
   trainBtn.innerHTML = `${ICON_PLAY}<span class="txt">Train</span>`;
-  actions.append(resetBtn, trainBtn);
+  actions.append(uploadBtn, resetBtn, trainBtn);
   head.append(seg, spacer, actions);
 
   const stage = el("div", "stage");
@@ -522,15 +548,20 @@ function mount(root) {
   const canvas = el("canvas");
   stage.append(canvas, hud, badge);
 
+  const msg = el("div", "msg");
+
   const cap = el("div", "cap");
   cap.innerHTML =
     "The same PPO update, compiled to WebAssembly by " +
     '<a href="https://github.com/noahfarr/whlo">whlo</a>. Only the torso changes ' +
-    "between the buttons, and the algorithm never knows which network it is training.";
+    "between the buttons, and the algorithm never knows which network it is training. " +
+    "The upload button takes your own <code>init.mlir</code> and <code>train_step.mlir</code>, " +
+    "exported from any network that follows the same <code>(state, key)</code> interface, and " +
+    "whlo compiles and trains it right here.";
 
-  card.append(head, stage, cap);
-  root.appendChild(card);
-  return { seg, thumb, modelBtns, resetBtn, trainBtn, canvas, hud, badge };
+  card.append(head, stage, msg, cap);
+  root.append(card, fileInput);
+  return { seg, thumb, modelBtns, customBtn, uploadBtn, fileInput, resetBtn, trainBtn, canvas, hud, badge, msg };
 }
 
 // ---------------------------------------------------------------------------
@@ -575,6 +606,11 @@ async function main() {
   function setBadge(live) {
     ui.badge.className = "badge " + (live ? "live" : "preview");
     ui.badge.innerHTML = `<span class="led"></span>${live ? "live in-browser" : "preview"}`;
+  }
+
+  function setMsg(text, kind = "") {
+    ui.msg.className = "msg" + (kind ? " " + kind : "");
+    ui.msg.textContent = text || "";
   }
 
   function renderHud(target) {
@@ -642,6 +678,62 @@ async function main() {
     paintSelector();
   }
 
+  async function selectModel(id) {
+    stop();
+    state.modelId = id;
+    paintSelector();
+    const backend = await backendFor(id);
+    setBadge(backend.live);
+    renderHud(state.metrics.get(id) ?? null);
+  }
+
+  // Compile an uploaded init.mlir + train_step.mlir with whlo, validate both the
+  // init and one train step run against the (state, key) interface, then reveal the
+  // "Yours" tab. Any layout/interface mismatch fails here, not mid-training.
+  async function onUpload(fileList) {
+    const files = [...fileList];
+    if (!files.length) return;
+    setMsg("Compiling your policy with whlo…", "busy");
+    let parsed;
+    try {
+      parsed = await Promise.all(
+        files.map(async (f) => ({ name: f.name.toLowerCase(), text: await f.text() }))
+      );
+    } catch (_) {
+      setMsg("Could not read those files.", "err");
+      return;
+    }
+    const mlir = parsed.filter((p) => p.name.endsWith(".mlir"));
+    const init = mlir.find((p) => /init/.test(p.name));
+    const step = mlir.find((p) => /train|step/.test(p.name)) || mlir.find((p) => p !== init);
+    const layoutFile = parsed.find((p) => p.name.endsWith(".json"));
+    if (!init || !step) {
+      setMsg("Select both an init.mlir and a train_step.mlir.", "err");
+      return;
+    }
+    let layout = null;
+    try {
+      if (layoutFile) layout = JSON.parse(layoutFile.text);
+    } catch (_) {}
+    try {
+      const backend = await WhloBackend.fromSources(init.text, step.text, layout);
+      backend.step(); // exercise train_step once so a bad interface throws now
+      backend.reset(); // discard the trial rollout, start the tab clean
+      state.backends.set("custom", backend);
+      state.metrics.delete("custom");
+      state.shown.delete("custom");
+      plot.ensure("custom");
+      plot.clear("custom");
+      ui.customBtn.style.display = "";
+      ui.customBtn.title = files.map((f) => f.name).join(", ");
+      setMsg("");
+      selectModel("custom");
+    } catch (err) {
+      console.error("[pomdp] upload compile/run failed:", err);
+      setMsg("whlo could not compile that policy. It must export the (state, key) interface.", "err");
+    }
+  }
+
   ui.trainBtn.addEventListener("click", () => (state.running ? stop() : start()));
   ui.resetBtn.addEventListener("click", async () => {
     stop();
@@ -652,16 +744,12 @@ async function main() {
     plot.clear(state.modelId);
     renderHud(null);
   });
-  ui.modelBtns.forEach((b) =>
-    b.addEventListener("click", async () => {
-      stop();
-      state.modelId = b.dataset.id;
-      paintSelector();
-      const backend = await backendFor(state.modelId);
-      setBadge(backend.live);
-      renderHud(state.metrics.get(state.modelId) ?? null);
-    })
-  );
+  ui.modelBtns.forEach((b) => b.addEventListener("click", () => selectModel(b.dataset.id)));
+  ui.uploadBtn.addEventListener("click", () => ui.fileInput.click());
+  ui.fileInput.addEventListener("change", (e) => {
+    onUpload(e.target.files);
+    e.target.value = ""; // allow re-uploading the same filename
+  });
   window.addEventListener("resize", positionThumb);
 
   paintSelector();
