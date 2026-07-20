@@ -2,105 +2,111 @@
 layout: post
 title: not every token is an action
 date: 2026-07-20 10:00:00 +0200
-description: an argument for treating LLM RL as a POMDP instead of an MDP, and what falls out for free once you do
+description: an argument for treating LLM RL as a POMDP rather than an MDP, and what falls out for free once you do
 tags: reinforcement-learning llms partial-observability agents
 categories: research
 featured: true
 ---
 
-This one is an argument, not a result. RL on LLMs gets described as sequential
-decision-making on a Markov decision process, and for a single-turn rollout that's a
-defensible simplification. The moment there's a tool call or a second turn, it stops being
-defensible, because the thing generating what happens next is no longer sitting inside the
-token stream the model can see. That's a POMDP. And once it's written down properly, a
-handful of things that usually get justified as engineering folklore — masking the loss on
-tool outputs, scoping the KL penalty, scoping the importance ratio — turn out to be forced
-consequences of one distinction: which tokens the policy chose, and which tokens it
-didn't.
+This post is an argument rather than a result. RL on LLMs is usually described as a
+Markov decision process over tokens, and I think the honest frame is a partially
+observable one: output tokens are actions, prompts and tool results are observations,
+and the context window is the history a POMDP policy conditions on. In one sentence: the
+moment anything other than the policy can write into the transcript, you are in a POMDP,
+and once you admit that, a family of standard "tricks", like masking tool outputs out of
+the loss, stops being folklore and becomes forced.
 
-## Start with a bandit
+The way there is a ladder of three formalisms. RLHF started as a bandit. It got refined
+into a token-level MDP. That frame cracks in two distinct ways, and underneath the
+cracks is the POMDP that was there the whole time.
 
-The simplest honest description of vanilla RLHF is a contextual bandit. A prompt is drawn,
-the whole response is a single action pulled from an enormous arm space, and one scalar
-reward comes back:
+## Where RLHF starts: a bandit
 
-$$
-c \sim \mathcal{D}, \qquad a \sim \pi_\theta(\cdot \mid c), \qquad r = R(c, a).
-$$
-
-This is exactly how DPO was originally derived, as a bandit problem where the entire
-response is treated as one arm {% cite rafailov2024from --file references %}. It's a
-clean formulation, and it's also throwing away everything about what happens *inside* the
-response. There is no sequential structure here at all — one reward covers every token in
-the completion equally, whether the token mattered or not.
-
-## Refine it into a token-level MDP
-
-The standard fix is to stop treating the response as one arm and decompose it into a
-sequence of token-level actions. State is the prefix, action is the next token, and the
-state transition is just concatenation:
+The simplest honest description of single-turn RLHF is a contextual bandit. A prompt
+comes in, the whole response goes out as one action from an enormous arm space, and one
+scalar reward comes back:
 
 $$
-s_0 = c, \qquad s_{t+1} = s_t \oplus a_t, \qquad a_t \sim \pi_\theta(\cdot \mid s_t), \qquad
-r_t = \begin{cases} R(s_T) & t = T \\ 0 & \text{otherwise.} \end{cases}
+c \sim \mathcal{D}, \qquad y \sim \pi_\theta(\cdot \mid c), \qquad r = R(c, y).
 $$
 
-This is how RLHF is actually implemented under PPO, and it's the view {% cite
-rafailov2024from --file references %} uses to show DPO's implicit reward is secretly a
-Q-function once you stop pretending the response is atomic. It's Markovian by
-construction, because $$s_t$$ *is* the entire history — the prefix holds everything that's
-ever happened, so there's nothing hidden left to condition on.
+This is not a strawman; it is exactly how DPO was originally derived, with the entire
+response treated as a single arm {% cite rafailov2024from --file references %}. And it
+is fine, as far as it goes. But it flattens everything that happens inside the response:
+one reward covers every token equally, whether that token mattered or not.
 
-## Two ways this already breaks
+## One step finer: a token-level MDP
 
-1. **It collapses back into a bandit.** Give the token MDP a reward that only lands at the
-   last token, and don't give it a real per-token value function, and you've bought a
-   sequential state you aren't using. GRPO is the clean example: sample a group of $$G$$
-   completions per prompt, score each one, and normalize within the group to get a single
-   scalar advantage per completion {% cite shao2024deepseekmath --file references %}:
+The standard refinement is to break the arm into a sequence. The state is the prefix,
+the action is the next token, and the transition is concatenation:
+
+$$
+s_0 = c, \qquad a_t \sim \pi_\theta(\cdot \mid s_t), \qquad s_{t+1} = s_t \oplus a_t,
+$$
+
+with reward landing once, at the last token. This is the MDP that PPO-style RLHF
+actually implements, and it is the lens under which DPO's implicit reward turns out to
+be a Q-function {% cite rafailov2024from --file references %}. Note that it is Markovian
+by construction: the state _is_ the entire history, so there is nothing hidden for the
+policy to miss.
+
+## The catch: two cracks
+
+The token MDP breaks in two distinct ways, and they are worth separating, because only
+one of them can be fixed with a better algorithm.
+
+1. **It quietly collapses back into the bandit.** The sequential state only earns its
+   keep if something assigns credit at the token level. Take GRPO: sample a group of
+   $$G$$ responses per prompt, score each one, normalise within the group, and hand
+   every token in a response the same advantage {% cite shao2024deepseekmath --file references %}:
+
    $$
-   A_i = \frac{r_i - \text{mean}(\{r_1,\dots,r_G\})}{\text{std}(\{r_1,\dots,r_G\})}, \qquad
-   \hat A_{i,t} = A_i \ \text{ for every token } t \text{ in completion } i.
+   A_i = \frac{r_i - \operatorname{mean}(r_1,\dots,r_G)}{\operatorname{std}(r_1,\dots,r_G)},
+   \qquad \hat{A}_{i,t} = A_i \ \text{ for every token } t.
    $$
-   Every token in a completion gets the same advantage. There's no critic, no per-token
-   credit assignment, nothing that the token-level state buys you over just picking a whole
-   response as one arm. This isn't a criticism — it's a pragmatic, stable thing to do — but
-   it's worth being honest that the "MDP" here is a data structure, not an algorithm.
 
-2. **It has no home for a token you didn't choose.** $$s_{t+1} = s_t \oplus a_t$$ assumes
-   every token past the prompt was sampled from $$\pi_\theta$$. That's true in a single
-   forward pass with no tools. It stops being true the instant something else can write
-   into the transcript — a tool result, another turn from a user or environment. Those
-   tokens are not draws from $$\pi_\theta(\cdot \mid s_t)$$; they're just data that showed
-   up. The token MDP has no formal slot for "something entered my state that I have no
-   distribution over."
+   No critic, no per-token credit. Squint and the "token MDP" is doing exactly what the
+   bandit did, judging whole arms. That is not a criticism, it is a stable and pragmatic
+   choice, but it does mean the MDP is functioning as a data structure rather than as a
+   decision process.
 
-The first failure is a choice of algorithm, and you can fix it by using a better one. The
-second isn't — it's a hole in the formalism, and no amount of clever credit assignment
-patches it. That one needs an actual observation channel.
+2. **It has no slot for a token the policy did not choose.** The transition
+   $$s_{t+1} = s_t \oplus a_t$$ assumes every token past the prompt was sampled from
+   $$\pi_\theta$$. In a single uninterrupted completion that is true. The moment a tool
+   result lands in the transcript, or a user replies, it is false: those tokens were
+   never drawn from any policy. The transition would need to read
+   $$s_{t+1} = s_t \oplus a_t \oplus o_{t+1}$$, with $$o_{t+1}$$ arriving from outside,
+   and the token MDP simply has no name for $$o_{t+1}$$.
 
-## The POMDP
+The first crack you can patch inside the frame, by training a critic. The second is a
+hole in the formalism itself, and it is the door to the POMDP.
 
-A POMDP makes the split explicit. There's a true state $$s_t$$ the agent never sees
-directly — the actual contents of a file, the bug that's failing a test, a user's actual
-intent. The agent gets an observation instead, and it acts:
+## The idea: it was a POMDP all along
+
+A POMDP makes the missing distinction primitive. There is a true state the agent never
+sees directly: the contents of files it has not opened, the bug behind a failing test,
+the user's actual intent. Acting changes that state, and observations leak it:
 
 $$
-s_{t+1} \sim T(\cdot \mid s_t, a_t), \qquad o_{t+1} \sim \Omega(\cdot \mid s_{t+1}, a_t),
-\qquad h_t = (o_1, a_1, \dots, o_t), \qquad a_t \sim \pi_\theta(\cdot \mid h_t).
+s_{t+1} \sim T(\cdot \mid s_t, a_t), \qquad o_{t+1} \sim \Omega(\cdot \mid s_{t+1}, a_t).
 $$
 
-Because $$s_t$$ is hidden, the policy can't condition on it, and it can't condition on
-$$o_t$$ alone either — a single observation underdetermines the state. What it needs is the
-whole history $$h_t$$, or a sufficient statistic of it (a belief state), since that's the
-thing that's actually Markovian here {% cite kaelbling1998planning --file references %}.
-Formally the history is a sequence of $$(o, a, r)$$ triples, but the policy only ever reads
-$$(o, a)$$ — reward is what the learning algorithm consumes to build a training signal, not
-something fed back in as an input token. I'll drop $$r$$ from $$h_t$$ from here on.
+Because the state is hidden, no single observation is enough to act on. The classical
+answer is to condition on the whole history, or a sufficient statistic of it (a belief
+state), because the history is the thing that is actually Markovian
+{% cite kaelbling1998planning --file references %}:
 
-This is, concretely, what the context window already is. Every prompt token, every tool
-result, every prior turn — it's all just $$h_t$$, and attention over the whole thing stands
-in for conditioning on history. Nobody built a separate belief-state module; the field
+$$
+h_t = (o_0, a_1, o_1, \dots, o_t), \qquad a_{t+1} \sim \pi_\theta(\cdot \mid h_t).
+$$
+
+Formally a history is a sequence of $$(o, a, r)$$ triples. The policy only ever reads
+the $$(o, a)$$ part; reward is what the learning algorithm consumes, not something fed
+back in as input, so I drop $$r$$ from $$h_t$$.
+
+And this is, concretely, what an LLM agent already is. Every prompt token, every tool
+result, every prior turn is $$h_t$$, and attention over the full context stands in for
+conditioning on history. Nobody sat down and built a belief-state module; the field
 backed into the right formalism by brute-force concatenation.
 
 <figure style="margin: 1.8rem 0;">
@@ -126,52 +132,48 @@ backed into the right formalism by brute-force concatenation.
   <div class="tok obs">stdout:<br>3 passed<br><sub>o₃</sub></div>
   <div class="tok rew">reward<br><sub>r</sub></div>
 </div>
-<figcaption class="caption" style="margin-top:8px;">One rollout of a tool-using agent. Blue spans are actions the policy actually sampled and should get gradient; grey spans are observations injected from outside and shouldn't; reward lands once, at the end, and is consumed by the learning algorithm rather than read back in as a token.</figcaption>
+<figcaption class="caption" style="margin-top:8px;">One rollout of a tool-using agent. Blue spans are actions the policy sampled and should get gradient; grey spans are observations injected from outside and should not; reward lands once, at the end, and goes to the learner rather than back into the context.</figcaption>
 </figure>
 
 ## What falls out for free
 
-Once $$o_t$$ and $$a_t$$ are formally distinct, a few things that get presented as
-implementation tricks turn out to be forced moves.
+Once observation and action are different objects, several things that usually get
+presented as engineering folklore become consequences you can read off the formalism.
+They are all the same one-line fact, worn three ways: $$\pi_\theta(o \mid h)$$ is not a
+thing. The policy has no distribution over tokens it did not emit.
 
-1. **Loss masking.** $$\pi_\theta(o_{t+1} \mid h_t)$$ isn't a quantity that means anything —
-   the policy didn't choose $$o_{t+1}$$, so there's no action distribution to
-   differentiate. Masking the loss on prompt, tool-output, and other-turn tokens isn't a
-   hack bolted onto training; it's declining to compute a gradient for something that was
-   never defined in the first place. Agent-R1 builds exactly this as an explicit "action
-   mask" that "clearly delineate[s] the tokens generated by the LLM agent (its actions)
-   from the environmental feedback or the initial prompt," and ablates it directly: with
-   both the loss mask and the advantage mask disabled, their average score drops from
-   0.372 to 0.302 under PPO, an 18.7% fall, and from 0.388 to 0.372 under GRPO with just
-   the loss mask off {% cite cheng2025agentr1 --file references %}. That's not a stability
-   trick paying off, it's the cost of training on a signal that was ill-defined to begin
-   with.
-2. **KL scoping.** The penalty against a reference policy is supposed to measure how far
-   the policy's own choices have drifted. A reference model's log-probability on an
-   injected observation token isn't measuring drift in a choice, because it was never a
-   choice. Scope the KL term to action tokens for the same reason you scope the loss.
-3. **Ratio scoping.** The PPO/GRPO importance ratio $$\pi_\theta(a_t \mid h_t) /
-   \pi_{\theta_\text{old}}(a_t \mid h_t)$$ corrects for distribution shift in what the
-   policy would have sampled between updates. There's no such shift to correct on a token
-   that was never sampled from any policy in the first place — old or new.
+1. **Loss masking.** There is no policy gradient to compute on a tool-output token,
+   because the policy never chose it. Masking prompt, tool-result, and other-turn tokens
+   out of the loss is not a stabilisation trick; it is declining to differentiate a
+   quantity that was never defined. Agent-R1 builds exactly this as an explicit action
+   mask separating agent-generated tokens from environment feedback, and ablates it:
+   with the masks disabled, their average score drops from 0.372 to 0.302 under PPO, and
+   from 0.388 to 0.372 under GRPO {% cite cheng2025agentr1 --file references %}. Same
+   architecture, same data, the only difference is whether observations are treated as
+   actions.
+2. **KL scoping.** The penalty against a reference policy measures how far the policy's
+   choices have drifted. A reference model's log-probability on an injected observation
+   is not measuring drift in a choice, because there was no choice. The KL term scopes
+   to action tokens for the same reason the loss does.
+3. **Ratio scoping.** The PPO-style importance ratio corrects for distribution shift in
+   what the policy would have sampled between updates. On a token that was never sampled
+   from any policy, old or new, there is no shift to correct.
 
-All three are the same one-line fact, applied at three different places in the objective:
-the loss, the KL term, the clipping ratio. None of them are independent tricks you'd need
-to separately rediscover; they're one distinction wearing three hats.
+And one consequence a level up from the loss: a value or advantage estimate at an action
+token has to condition on the whole history, not just the latest observation. Two
+rollouts that differ in what happened ten tool calls ago but share the same last tool
+output are different histories, and a value function that only reads the last turn will
+alias them, for exactly the reason a POMDP says it will.
 
-There's a fourth consequence a level up from the loss rather than inside it: a value or
-advantage estimate at an action token needs to condition on the *whole* history up to that
-point, not just the most recent observation. Two rollouts that differ in what happened ten
-tool calls ago but happen to share the same last observation are not the same state — and
-if your value function only looks at the latest turn, it will alias them, for exactly the
-reason a POMDP says it should.
+## Why I like this framing
 
-None of this changes what careful agentic RL implementations already do — good ones
-already mask, already scope, already condition value estimates on the full transcript.
-What changes is whether that's folklore independently rediscovered per codebase, or one
-fact about the problem, applied consistently. If you think I've got a piece of this wrong,
-or you're running into a place where the split doesn't hold cleanly, I'd like to hear
-about it — [get in touch](/).
+Nothing here changes what a careful implementation already does. Good agentic RL
+codebases already mask the loss, scope the KL, and condition their value estimates on
+the full transcript. What the POMDP buys is that these stop being independent tricks,
+each rediscovered and re-justified per codebase, and become one fact about the problem,
+applied consistently: not every token is an action, and only actions get gradients. If
+you think a piece of this is wrong, or you have a setting where the split does not hold
+cleanly, I would genuinely like to hear about it, so [get in touch](/).
 
 ## References
 
