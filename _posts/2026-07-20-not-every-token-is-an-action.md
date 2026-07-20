@@ -8,19 +8,23 @@ categories: research
 featured: true
 ---
 
-This post is an argument rather than a result. RL on LLMs is usually described as a
-Markov decision process over tokens. I think the honest frame is a partially observable
-one, where output tokens are actions, prompts and tool results are observations, and the
-context window is the history a POMDP policy conditions on. In one sentence, the moment
-anything other than the policy can write into the transcript, you are in a POMDP, and
-once you admit that, a family of standard "tricks", like masking tool outputs out of the
-loss, stops being folklore and becomes forced.
+Reinforcement learning on language models is almost always written down as a Markov
+decision process over tokens. That framing is quietly broken, and loss masking is the
+tell. Every serious agentic-RL codebase masks tool outputs and other-turn tokens out of
+the loss, and nearly everyone files it under stabilisation tricks, somewhere next to
+gradient clipping and reward normalisation. It is not a trick. It is a theorem, and you
+are rediscovering it by accident, because the environment was never a Markov decision
+process. It was partially observable all along.
 
-The way there is a ladder of three formalisms. RLHF started as a bandit. It got refined
-into a token-level MDP. That frame cracks in two distinct ways, and underneath the
-cracks is the POMDP that was there the whole time. At the end I'll put the claim to a
-practical test. If the frame is right, an LLM should drop into a completely standard RL
-implementation with no adaptations at all, and it does.
+The distinction the token-level MDP throws away is the only one that matters here, which
+tokens the policy chose and which tokens the world handed it. Output tokens are actions.
+Prompts and tool results are observations. A POMDP is precisely the formalism that keeps
+those two straight, and once you write LLM RL down as one, loss masking stops being
+folklore and becomes forced, along with a short family of its siblings. The path there is
+a ladder of three formalisms. RLHF starts as a bandit, gets refined into a token-level
+MDP, and that frame cracks in two places, with the POMDP waiting underneath. At the end I
+put the claim to a practical test. If it is right, an LLM should drop into a completely
+standard RL stack with no adaptations at all, and it does.
 
 ## Where RLHF starts: a bandit
 
