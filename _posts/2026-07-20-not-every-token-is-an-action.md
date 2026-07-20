@@ -216,6 +216,42 @@ were never mixed into the action stream in the first place. Loss masking is the
 correction you need when $$h_t$$ is stored as one flat token buffer; write the POMDP
 down structurally and the bug it corrects cannot even be expressed.
 
+<figure style="margin: 1.8rem 0;">
+<style>
+.stream-wrap{overflow-x:auto;}
+.stream-grid{display:grid;grid-template-columns:auto repeat(6,1fr);gap:6px;align-items:stretch;font-family:monospace;font-size:0.74rem;min-width:560px;}
+.lane-label{display:flex;align-items:center;justify-content:flex-end;padding:0 8px;opacity:.6;font-style:italic;}
+.tok.none{background:none;border:1px dashed rgba(128,128,128,0.4);opacity:.45;font-weight:400;}
+@media (max-width:640px){.stream-grid{font-size:.62rem;}}
+</style>
+<div class="stream-wrap">
+<div class="stream-grid">
+  <div class="lane-label">o</div>
+  <div class="tok obs">prompt</div>
+  <div class="tok none">—</div>
+  <div class="tok obs">stdout:<br>3 failed</div>
+  <div class="tok none">—</div>
+  <div class="tok obs">tool:<br>file saved</div>
+  <div class="tok obs">stdout:<br>3 passed</div>
+  <div class="lane-label">a</div>
+  <div class="tok act">"check the<br>test output"</div>
+  <div class="tok act">bash: pytest</div>
+  <div class="tok act">"off-by-one<br>in parse()"</div>
+  <div class="tok act">edit parse.py</div>
+  <div class="tok act">bash: pytest</div>
+  <div class="tok none">stop</div>
+  <div class="lane-label">r</div>
+  <div class="tok none">0</div>
+  <div class="tok none">0</div>
+  <div class="tok none">0</div>
+  <div class="tok none">0</div>
+  <div class="tok none">0</div>
+  <div class="tok rew">+1</div>
+</div>
+</div>
+<figcaption class="caption" style="margin-top:8px;">The same rollout, the way a POMDP-native implementation stores it: observation, action, and reward as separate, step-aligned channels, which is literally the network's input signature. Dashes are steps where nothing came back from the environment. The loss only ever touches the action lane, not because anything is masked, but because there is nothing else it could touch.</figcaption>
+</figure>
+
 ## Why I like this framing
 
 Nothing here changes what a careful implementation already does. Good agentic RL
