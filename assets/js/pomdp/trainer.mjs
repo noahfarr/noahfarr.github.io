@@ -324,14 +324,6 @@ class Plot {
         ctx.beginPath();
         ctx.arc(hx, hy, 3, 0, Math.PI * 2);
         ctx.fill();
-
-        const label = `${this.labelOf(id)} ${Math.round(s.data[i] * 100)}%`;
-        ctx.font = "700 11px ui-monospace, SFMono-Regular, Menlo, monospace";
-        ctx.textAlign = hx > g.x1 - 70 ? "right" : "left";
-        ctx.textBaseline = "bottom";
-        ctx.fillStyle = color;
-        ctx.fillText(label, hx > g.x1 - 70 ? hx - 8 : hx + 8, hy - 6);
-        ctx.textBaseline = "middle";
       }
     }
 
@@ -462,16 +454,16 @@ html[data-theme="light"] #${MOUNT}{ --s1:#2a78d6; --s2:#008300; --s3:#e87ba4; --
 #${MOUNT} button:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
 #${MOUNT} svg{ display:block; }
 
-/* chart stage with floating HUD + badge */
+/* hero readout row sits ABOVE the chart, never over it */
+#${MOUNT} .readout{ display:flex; align-items:flex-end; justify-content:space-between;
+  gap:1rem; margin-bottom:.5rem; }
+#${MOUNT} .readout .big{ font-size:1.85rem; font-weight:700; line-height:1; letter-spacing:-.02em; }
+#${MOUNT} .readout .sub{ font-size:.72rem; color:var(--muted); margin-top:.28rem; }
 #${MOUNT} .stage{ position:relative; }
-#${MOUNT} canvas{ display:block; width:100%; height:210px; cursor:crosshair; }
-#${MOUNT} .hud{ position:absolute; top:2px; left:6px; pointer-events:none; }
-#${MOUNT} .hud .big{ font-size:1.9rem; font-weight:700; line-height:1; letter-spacing:-.02em; }
-#${MOUNT} .hud .sub{ font-size:.72rem; color:var(--muted); margin-top:.2rem; }
-#${MOUNT} .badge{ position:absolute; top:4px; right:4px; display:inline-flex; align-items:center;
-  gap:.32rem; font-size:.62rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
-  padding:.2rem .5rem; border-radius:999px; border:1px solid var(--line); color:var(--muted);
-  background:color-mix(in srgb, var(--surface) 80%, transparent); backdrop-filter:blur(4px); }
+#${MOUNT} canvas{ display:block; width:100%; height:190px; cursor:crosshair; }
+#${MOUNT} .badge{ display:inline-flex; align-items:center; gap:.32rem; font-size:.62rem; font-weight:700;
+  letter-spacing:.04em; text-transform:uppercase; padding:.2rem .5rem; border-radius:999px;
+  border:1px solid var(--line); color:var(--muted); white-space:nowrap; }
 #${MOUNT} .badge .led{ width:.44rem; height:.44rem; border-radius:50%; background:currentColor; }
 #${MOUNT} .badge.live{ color:var(--s2); }
 #${MOUNT} .badge.live .led{ animation: pomdpBlink 1.6s ease-in-out infinite; }
@@ -541,12 +533,14 @@ function mount(root) {
   actions.append(uploadBtn, resetBtn, trainBtn);
   head.append(seg, spacer, actions);
 
-  const stage = el("div", "stage");
-  const hud = el("div", "hud");
-  hud.innerHTML = '<div class="big">&nbsp;</div><div class="sub"></div>';
+  const readout = el("div", "readout");
+  const hero = el("div");
+  hero.innerHTML = '<div class="big">&nbsp;</div><div class="sub"></div>';
   const badge = el("div", "badge");
+  readout.append(hero, badge);
+  const stage = el("div", "stage");
   const canvas = el("canvas");
-  stage.append(canvas, hud, badge);
+  stage.appendChild(canvas);
 
   const msg = el("div", "msg");
 
@@ -559,9 +553,9 @@ function mount(root) {
     "exported from any network that follows the same <code>(state, key)</code> interface, and " +
     "whlo compiles and trains it right here.";
 
-  card.append(head, stage, msg, cap);
+  card.append(head, readout, stage, msg, cap);
   root.append(card, fileInput);
-  return { seg, thumb, modelBtns, customBtn, uploadBtn, fileInput, resetBtn, trainBtn, canvas, hud, badge, msg };
+  return { seg, thumb, modelBtns, customBtn, uploadBtn, fileInput, resetBtn, trainBtn, canvas, readout, badge, msg };
 }
 
 // ---------------------------------------------------------------------------
@@ -583,8 +577,8 @@ async function main() {
     shown: new Map(), // animated hero value per model
   };
 
-  const bigEl = ui.hud.querySelector(".big");
-  const subEl = ui.hud.querySelector(".sub");
+  const bigEl = ui.readout.querySelector(".big");
+  const subEl = ui.readout.querySelector(".sub");
 
   function positionThumb() {
     const btn = ui.modelBtns.find((b) => b.dataset.id === state.modelId);
