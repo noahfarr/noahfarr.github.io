@@ -87,8 +87,7 @@ class WhloBackend {
     const { compile, initCompiler } = await import(WHLO);
     await initCompiler();
     const [initExe, stepExe] = await Promise.all([compile(initSrc), compile(stepSrc)]);
-    const metricIndex =
-      layout && layout.metric_index != null ? layout.metric_index : stepExe.outputs.length - 1;
+    const metricIndex = layout && layout.metric_index != null ? layout.metric_index : stepExe.outputs.length - 1;
     return new WhloBackend(compile, initExe, stepExe, metricIndex);
   }
   static async load(modelId) {
@@ -203,7 +202,10 @@ class Plot {
     requestAnimationFrame(() => this._tick());
   }
   _geom() {
-    const padL = 38, padR = 14, padT = 16, padB = 24;
+    const padL = 38,
+      padR = 14,
+      padT = 16,
+      padB = 24;
     return {
       x0: padL,
       x1: this.w - padR,
@@ -256,9 +258,7 @@ class Plot {
     ctx.textAlign = "center";
     ctx.fillText("Training updates", (g.x0 + g.x1) / 2, h - 8);
 
-    const order = [...this.series.keys()].sort(
-      (a, b) => (a === this.active ? 1 : 0) - (b === this.active ? 1 : 0)
-    );
+    const order = [...this.series.keys()].sort((a, b) => (a === this.active ? 1 : 0) - (b === this.active ? 1 : 0));
 
     // crosshair (drawn under the lines)
     if (this.hover != null) {
@@ -307,7 +307,8 @@ class Plot {
 
       // head dot (+ pulse when running) and direct label on the active series
       const i = s.data.length - 1;
-      const hx = g.sx(i), hy = g.sy(s.data[i]);
+      const hx = g.sx(i),
+        hy = g.sy(s.data[i]);
       if (isActive) {
         if (this.running && !REDUCED) {
           const r = 5 + 5 * Math.sin(this.pulse * Math.PI);
@@ -338,7 +339,10 @@ class Plot {
           v: s.data[this.hover],
         }));
       if (rows.length) {
-        const pad = 8, lh = 15, bw = 116, bh = pad * 2 + 14 + rows.length * lh;
+        const pad = 8,
+          lh = 15,
+          bw = 116,
+          bh = pad * 2 + 14 + rows.length * lh;
         let bx = g.sx(this.hover) + 10;
         if (bx + bw > g.x1) bx = g.sx(this.hover) - bw - 10;
         const by = g.y1 + 4;
@@ -373,7 +377,11 @@ function rgba(color, alpha) {
   color = color.trim();
   if (color.startsWith("#")) {
     let hex = color.slice(1);
-    if (hex.length === 3) hex = hex.split("").map((c) => c + c).join("");
+    if (hex.length === 3)
+      hex = hex
+        .split("")
+        .map((c) => c + c)
+        .join("");
     const n = parseInt(hex, 16);
     return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
   }
@@ -485,9 +493,12 @@ html[data-theme="light"] #${MOUNT}{ --s1:#2a78d6; --s2:#008300; --s3:#e87ba4; --
 `;
 
 const ICON_PLAY = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5v9l7-4.5z" fill="currentColor"/></svg>';
-const ICON_PAUSE = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="1.5" width="2.6" height="9" rx="1" fill="currentColor"/><rect x="6.9" y="1.5" width="2.6" height="9" rx="1" fill="currentColor"/></svg>';
-const ICON_RESET = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M11.5 7a4.5 4.5 0 1 1-1.32-3.18"/><path d="M11.2 1.6v2.6H8.6"/></svg>';
-const ICON_UPLOAD = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V2.6"/><path d="M4.4 5 7 2.4 9.6 5"/><path d="M2.5 9.5v1a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5v-1"/></svg>';
+const ICON_PAUSE =
+  '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="1.5" width="2.6" height="9" rx="1" fill="currentColor"/><rect x="6.9" y="1.5" width="2.6" height="9" rx="1" fill="currentColor"/></svg>';
+const ICON_RESET =
+  '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M11.5 7a4.5 4.5 0 1 1-1.32-3.18"/><path d="M11.2 1.6v2.6H8.6"/></svg>';
+const ICON_UPLOAD =
+  '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V2.6"/><path d="M4.4 5 7 2.4 9.6 5"/><path d="M2.5 9.5v1a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5v-1"/></svg>';
 
 function mount(root) {
   const style = el("style");
@@ -690,9 +701,7 @@ async function main() {
     setMsg("Compiling your policy with whlo…", "busy");
     let parsed;
     try {
-      parsed = await Promise.all(
-        files.map(async (f) => ({ name: f.name.toLowerCase(), text: await f.text() }))
-      );
+      parsed = await Promise.all(files.map(async (f) => ({ name: f.name.toLowerCase(), text: await f.text() })));
     } catch (_) {
       setMsg("Could not read those files.", "err");
       return;
