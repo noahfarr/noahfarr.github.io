@@ -8,7 +8,12 @@
 // to allow 'wasm-unsafe-eval'. AOT-compiled .wasm files (via the whlo CLI)
 // avoid that requirement.
 
-import init, { compile_with as compilerCompile, relaxed_simd_probe } from "../pkg/whlo_web.js";
+import init, {
+  compile_with as compilerCompile,
+  compile_webgpu as compilerCompileWebGpu,
+  relaxed_simd_probe,
+} from "../pkg/whlo_web.js";
+import { WebGpuExecutable } from "./webgpu.mjs";
 
 let initialized = null;
 let relaxedSimd = false;
@@ -28,23 +33,28 @@ export async function initCompiler(input) {
   await initialized;
 }
 
-const DTYPES = {
-  float32: Float32Array,
-  float64: Float64Array,
-  int32: Int32Array,
-  uint32: Uint32Array,
-  int64: BigInt64Array,
-  uint64: BigUint64Array,
-  bool: Uint8Array,
-};
+import { DTYPES } from "./dtypes.mjs";
 
 /**
- * Compile StableHLO text and instantiate the resulting module.
+ * Compile StableHLO text and instantiate an executable.
+ *
  * @param {string} text - jax.export(...).mlir_module() output
- * @returns {Promise<Executable>}
+ * @param {object} opts
+ * @param {'wasm'|'webgpu'} [opts.backend='wasm'] - 'webgpu' compiles to WGSL
+ *   compute shaders and runs on the GPU (requires navigator.gpu, or pass
+ *   opts.gpu for a custom provider, e.g. Dawn in Node). Both
+ *   backends produce identical results at golden tolerances; prefer
+ *   `await exe.run(...)` so the two are interchangeable (wasm run() is
+ *   synchronous, webgpu run() is async).
+ * @returns {Promise<Executable|WebGpuExecutable>}
  */
 export async function compile(text, opts = {}) {
   await initCompiler();
+  if (opts.backend === "webgpu") {
+    const compiled = compilerCompileWebGpu(text);
+    const plan = JSON.parse(compiled.plan_json);
+    return WebGpuExecutable.create(plan, compiled.const_bytes, opts.gpu);
+  }
   // Relaxed SIMD (fused multiply-add) is auto-detected; it changes float
   // rounding slightly. Pass { relaxedSimd: false } for bit-stable output
   // across engines.
