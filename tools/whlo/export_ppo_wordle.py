@@ -61,9 +61,11 @@ from algorithms.recurrent_ppo import RecurrentPPO, RecurrentPPOConfig
 from networks import (
     ActorCritic,
     FeatureExtractor,
+    MinGRUCell,
     Network,
     Projection,
     RNN,
+    SSM,
     SelfAttention,
     Stack,
     causal_attention_mask,
@@ -72,10 +74,14 @@ from networks import (
 
 def build_torso(args):
     """The torso is the only thing that changes between demo networks; the PPO
-    algorithm below is identical regardless. gru exercises grad-through-scan (BPTT);
-    attention exercises the KV-cache concat/slice + dot_product_attention path."""
+    algorithm below is identical regardless.
+      gru       -> sequential nn.scan (grad-through-scan / BPTT)
+      min_gru   -> jax.lax.associative_scan (unrolled slice/concat tree, grad through it)
+      attention -> KV-cache concat/slice + dot_product_attention (xla path)"""
     if args.torso == "gru":
         recurrent = RNN(cell=nn.GRUCell(features=args.hidden))
+    elif args.torso == "min_gru":
+        recurrent = SSM(cell=MinGRUCell(features=args.hidden))
     elif args.torso == "attention":
         recurrent = SelfAttention(
             features=args.hidden,
@@ -143,7 +149,7 @@ def leaf_layout(avals):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--torso", choices=["gru", "attention"], default="gru")
+    parser.add_argument("--torso", choices=["gru", "min_gru", "attention"], default="gru")
     parser.add_argument("--num-heads", type=int, default=4)
     parser.add_argument("--num-words", type=int, default=16)
     parser.add_argument("--hidden", type=int, default=16)

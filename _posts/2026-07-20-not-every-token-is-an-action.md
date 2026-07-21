@@ -37,7 +37,7 @@ c \sim \mathcal{D}, \qquad y \sim \pi_\theta(\cdot \mid c), \qquad r = R(c, y).
 $$
 
 This is not a strawman; it is exactly how DPO was originally derived, with the entire
-response treated as a single arm {% cite rafailov2024from --file references %}. And it
+response treated as a single arm {% cite rafailov2023direct --file references %}. And it
 is fine, as far as it goes. But it flattens everything that happens inside the response.
 One reward covers every token equally, whether that token mattered or not.
 
