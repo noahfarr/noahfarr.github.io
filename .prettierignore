@@ -21,3 +21,6 @@ assets/tikz/sane_tikz/
 
 # local dev artifacts (Python venv from `uv sync`)
 **/.venv/
+
+# generated whlo modules for the in-browser trainer
+assets/pomdp/**
