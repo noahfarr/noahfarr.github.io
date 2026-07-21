@@ -45,6 +45,71 @@ export class CompileResult {
 if (Symbol.dispose) CompileResult.prototype[Symbol.dispose] = CompileResult.prototype.free;
 
 /**
+ * WebGPU-backend compile result: a JSON execution plan (shaders, step
+ * program, arena size, const layout, I/O manifest) plus one concatenated
+ * constants blob (kept out of the JSON to avoid base64 for weights).
+ */
+export class WebGpuCompileResult {
+    static __wrap(ptr) {
+        const obj = Object.create(WebGpuCompileResult.prototype);
+        obj.__wbg_ptr = ptr;
+        WebGpuCompileResultFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        WebGpuCompileResultFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_webgpucompileresult_free(ptr, 0);
+    }
+    /**
+     * @returns {Uint8Array}
+     */
+    get const_bytes() {
+        const ret = wasm.__wbg_get_webgpucompileresult_const_bytes(this.__wbg_ptr);
+        var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v1;
+    }
+    /**
+     * @returns {string}
+     */
+    get plan_json() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.__wbg_get_webgpucompileresult_plan_json(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @param {Uint8Array} arg0
+     */
+    set const_bytes(arg0) {
+        const ptr0 = passArray8ToWasm0(arg0, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.__wbg_set_webgpucompileresult_const_bytes(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * @param {string} arg0
+     */
+    set plan_json(arg0) {
+        const ptr0 = passStringToWasm0(arg0, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.__wbg_set_webgpucompileresult_plan_json(this.__wbg_ptr, ptr0, len0);
+    }
+}
+if (Symbol.dispose) WebGpuCompileResult.prototype[Symbol.dispose] = WebGpuCompileResult.prototype.free;
+
+/**
  * Compile StableHLO text (jax.export `.mlir_module()` output) to a wasm
  * module + manifest. Throws a JS error with a rendered diagnostic on
  * failure.
@@ -59,6 +124,23 @@ export function compile(text) {
         throw takeFromExternrefTable0(ret[1]);
     }
     return CompileResult.__wrap(ret[0]);
+}
+
+/**
+ * Compile StableHLO text for the WebGPU backend. The JS layer owns device
+ * setup and execution. Throws a rendered diagnostic on failure (including
+ * "op X is not supported on the WebGPU backend" for uncovered constructs).
+ * @param {string} text
+ * @returns {WebGpuCompileResult}
+ */
+export function compile_webgpu(text) {
+    const ptr0 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.compile_webgpu(ptr0, len0);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return WebGpuCompileResult.__wrap(ret[0]);
 }
 
 /**
@@ -117,6 +199,9 @@ function __wbg_get_imports() {
 const CompileResultFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_compileresult_free(ptr, 1));
+const WebGpuCompileResultFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_webgpucompileresult_free(ptr, 1));
 
 function getArrayU8FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
@@ -133,6 +218,13 @@ function getUint8ArrayMemory0() {
         cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
     }
     return cachedUint8ArrayMemory0;
+}
+
+function passArray8ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 1, 1) >>> 0;
+    getUint8ArrayMemory0().set(arg, ptr / 1);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
 }
 
 function passStringToWasm0(arg, malloc, realloc) {

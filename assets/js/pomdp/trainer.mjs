@@ -644,7 +644,8 @@ async function main() {
     let backend;
     try {
       backend = await WhloBackend.load(modelId);
-    } catch (_) {
+    } catch (error) {
+      console.warn(`[pomdp] ${modelId}: whlo backend unavailable, using illustrative preview`, error);
       backend = new MockBackend(modelId);
     }
     state.backends.set(modelId, backend);
