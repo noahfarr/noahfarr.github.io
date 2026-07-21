@@ -1,20 +1,29 @@
-"""Export the token-level RecurrentPPO Wordle loop to StableHLO for whlo, so the
-blog demo trains for real in the browser.
+"""Export a *normal* recurrent PPO Wordle loop to StableHLO for whlo, so the blog
+demo trains for real in the browser.
 
-This mirrors baselines/recipes/recurrent_ppo_wordle.py: the policy outputs tokens,
-and MCP converts token -> tool call -> MultiDiscrete guess. The recipe's to_action
-is a host pure_callback (tokenizer.decode + json.loads), which cannot cross into
-whlo, so this uses the jittable letter-codec instead: the tokens between the
-<tool_call>/</tool_call> ids are the five letters, gathered straight into the
-env's MultiDiscrete action. Same conversion, pure JAX.
+This is a plain recurrent PPO, shaped like recurrent_ppo_minatar, NOT the Qwen
+recurrent_ppo_wordle recipe. There are no tokens, no MCP, no Chunked torso, no LoRA
+and no tokenizer. The policy just plays Wordle directly:
+
+    action  = a single Discrete choice over the guess pool (pick a word)
+    obs     = {"observation": last-guess feedback, "action_mask": legal words}
+    torso   = GRU / MinGRU / attention (the only thing the three buttons swap)
+
+Because the action is a whole word, every guess is a legal word, so the task is
+learnable from the plain sparse +1 win reward alone (~0.34 random -> ~0.97 solved),
+with no reward shaping and no exploration wall. The action_mask is carried in the
+obs dict and zeroed into the actor logits; here it is all-true (every pool word is
+a legal guess), so it is ready for hard-mode masking but currently a no-op.
+
+WordChoice and the masked network are PRIVATE to this export -- they are not in the
+reinforcement-learning repo, which keeps its native 5-letter action for the LLM path.
 
 Two modules are emitted per torso, exactly like tools/whlo/export_mcts.py:
 
     init.mlir        key         -> state
-    train_step.mlir  state, key  -> state, metric   (metric = mean reward this update)
+    train_step.mlir  state, key  -> state, metric   (metric = solve rate this update)
 
-Everything is static-shape: num_envs, num_steps, the vocab, the word list and the
-torso width are all baked in. Run against the reinforcement-learning workspace:
+Run against the reinforcement-learning workspace:
 
     cd ~/reinforcement-learning
     uv run python ~/noahfarr.github.io/tools/whlo/export_ppo_wordle.py --torso gru \
@@ -37,16 +46,16 @@ import flax.linen as nn
 import numpy as np
 import optax
 from jax import export
+from utils import Timestep
 
 import environments
 import policies
-from environments.wrappers import MCP, SameStepAutoReset, Vectorize
+from environments.spaces import Space
+from environments.wrappers import SameStepAutoReset, Vectorize
+from environments.wrappers.wrapper import Wrapper
 from algorithms.recurrent_ppo import RecurrentPPO, RecurrentPPOConfig
 from networks import (
-    ActorCritic,
-    Chunked,
     MinGRUCell,
-    Network,
     Projection,
     RNN,
     SSM,
@@ -56,32 +65,73 @@ from networks import (
 )
 
 WORD_LENGTH = 5
-START, END, PAD = 26, 27, 28
-ABSENT, PRESENT, CORRECT, ILLEGAL = 29, 30, 31, 32
-VOCAB_SIZE = 33
 WORDS = [
     "crane", "slate", "audio", "house", "plant", "brick", "storm", "cloud",
     "grape", "flint", "mound", "spade", "chair", "lemon", "frost", "glaze",
 ]
+LETTERS = np.array([[ord(c) - ord("a") for c in word] for word in WORDS], np.int32)
 
 
-def to_action(arguments, cursor):
-    return arguments[:WORD_LENGTH]
+class WordChoice(Wrapper):
+    """Turn the letter env into a single Discrete choice over `words`.
+
+    action index -> look up the five letters -> step the underlying letter env.
+    obs becomes {"observation": feedback, "action_mask": all-true over words}.
+    """
+
+    def __init__(self, env, words):
+        super().__init__(env)
+        self._words = jnp.asarray(words, jnp.int32)
+        self._n = len(words)
+
+    def _wrap(self, timestep, action):
+        mask = jnp.ones((self._n,), bool)
+        obs = {"observation": timestep.obs, "action_mask": mask}
+        return timestep.replace(obs=obs, action=action)
+
+    def init(self, key, params=None):
+        state, timestep = self._env.init(key, params)
+        return state, self._wrap(timestep, jnp.zeros((), jnp.int32))
+
+    def step(self, key, state, action, params=None):
+        state, timestep = self._env.step(key, state, self._words[action], params)
+        return state, self._wrap(timestep, action)
+
+    def observation_space(self, params=None):
+        return {
+            "observation": self._env.observation_space(params),
+            "action_mask": Space(shape=(self._n,), dtype=bool, low=0, high=1),
+        }
+
+    def action_space(self, params=None):
+        return Space(shape=(), dtype=jnp.int32, low=0, high=self._n - 1)
 
 
-def to_tokens(obs):
-    cells = obs.reshape(WORD_LENGTH, 3)
-    return jnp.where(cells.sum(-1) > 0, ABSENT + cells.argmax(-1), ILLEGAL).astype(jnp.int32)
+class MaskedActorCriticNetwork(nn.Module):
+    """obs (+ previous word) -> torso -> masked actor logits and a value."""
 
-
-class TokenFeatureExtractor(nn.Module):
-    vocab_size: int
-    features: int
+    torso: nn.Module
+    num_actions: int
+    hidden: int
 
     @nn.compact
-    def __call__(self, obs, action=None, reward=None, done=None):
-        embedding = nn.Embed(self.vocab_size, self.features, name="token_embedding")
-        return jnp.concatenate([embedding(action)[..., None, :], embedding(obs)], axis=-2)
+    def __call__(self, obs, action=None, reward=None, done=None, carry=None, **kwargs):
+        features = jnp.concatenate(
+            [
+                nn.relu(nn.Dense(self.hidden, name="obs")(obs["observation"])),
+                jax.nn.one_hot(action, self.num_actions),
+            ],
+            axis=-1,
+        )
+        carry, x = self.torso(carry, features, done)
+        logits = nn.Dense(self.num_actions, name="actor", use_bias=False)(x)
+        logits = jnp.where(obs["action_mask"], logits, jnp.finfo(logits.dtype).min)
+        value = nn.Dense(1, name="critic")(x)
+        return carry, (logits, value)
+
+    @nn.nowrap
+    def initialize_carry(self, key, input_shape):
+        return self.torso.initialize_carry(key, input_shape)
 
 
 def build_torso(args):
@@ -98,41 +148,32 @@ def build_torso(args):
         recurrent = SelfAttention(
             features=args.hidden,
             num_heads=args.num_heads,
-            context_length=args.num_steps * (1 + WORD_LENGTH),
+            context_length=args.num_steps,
             attention_mask=causal_attention_mask,
         )
     else:
         raise ValueError(args.torso)
-    return Chunked(Stack((Projection(args.hidden, activation=nn.relu), recurrent)))
+    return Stack((Projection(args.hidden, activation=nn.relu), recurrent))
 
 
 def build_algorithm(args):
     words = pathlib.Path(tempfile.mkdtemp()) / "words.txt"
     words.write_text("\n".join(WORDS))
+    # The env is sparse by default now (shaping constants are 0): word choice makes
+    # every guess legal, so the plain +1 win reward is enough and shaping is unneeded.
     env, env_params = environments.make(
         namespace="wordle",
         env_id="Wordle-v0",
         kwargs={"answer_pool_path": words, "guess_pool_path": words},
     )
-    env = MCP(
-        env,
-        to_action=to_action,
-        to_tokens=to_tokens,
-        start=START,
-        end=END,
-        pad=PAD,
-        vocab_size=VOCAB_SIZE,
-        capacity=WORD_LENGTH,
-        observation_shape=(WORD_LENGTH,),
-        action_shape=(),
-    )
+    env = WordChoice(env, LETTERS)
     env = SameStepAutoReset(env)
     env = Vectorize(env, num_envs=args.num_envs)
 
-    network = Network(
-        feature_extractor=TokenFeatureExtractor(VOCAB_SIZE, args.hidden),
+    network = MaskedActorCriticNetwork(
         torso=build_torso(args),
-        head=ActorCritic(actor=nn.Dense(VOCAB_SIZE, use_bias=False), critic=nn.Dense(1)),
+        num_actions=len(WORDS),
+        hidden=args.hidden,
     )
     cfg = RecurrentPPOConfig(
         num_envs=args.num_envs,
@@ -154,7 +195,7 @@ def build_algorithm(args):
         policy=policies.categorical,
         optimizer=optax.chain(optax.clip_by_global_norm(0.5), optax.adam(2.5e-4)),
     )
-    return algorithm, args.num_steps
+    return algorithm, args.eval_steps
 
 
 def leaf_layout(avals):
@@ -165,12 +206,17 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--torso", choices=["gru", "min_gru", "attention"], default="gru")
     parser.add_argument("--num-heads", type=int, default=2)
-    parser.add_argument("--hidden", type=int, default=16)
-    parser.add_argument("--num-envs", type=int, default=16)
+    parser.add_argument("--hidden", type=int, default=32)
+    parser.add_argument("--num-envs", type=int, default=64)
     parser.add_argument("--num-steps", type=int, default=16)
-    parser.add_argument("--num-minibatches", type=int, default=1)
-    parser.add_argument("--update-epochs", type=int, default=1)
+    parser.add_argument("--num-minibatches", type=int, default=4)
+    parser.add_argument("--update-epochs", type=int, default=4)
+    parser.add_argument("--eval-steps", type=int, default=24)
     parser.add_argument("--out", type=pathlib.Path, default=pathlib.Path("/tmp/ppo_wordle"))
+    # A local CPU run is only a sanity check; XLA's CPU backend has a shape-dependent
+    # crash in the min_gru associative_scan gradient that jax.export (StableHLO, no CPU
+    # codegen) and whlo do not hit. --skip-check exports without that CPU execution.
+    parser.add_argument("--skip-check", action="store_true")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
 
@@ -179,24 +225,28 @@ def main():
     init_key, step_key = jax.random.split(key)
     state = algorithm.init(init_key)
 
-    def rollout_reward(state, key):
+    def solve_rate(state, key):
         def one(state, key):
             state, transition = algorithm.rollout(state, key, temperature=1.0)
-            return state, transition.second.reward
+            timestep = transition.second
+            zeros = jnp.zeros_like(timestep.reward)
+            solved = timestep.info.get("matched_secret", zeros)
+            return state, (solved, timestep.done.astype(jnp.float32))
 
-        _, rewards = jax.lax.scan(one, state, jax.random.split(key, eval_steps))
-        return rewards.mean()
+        _, (solved, done) = jax.lax.scan(one, state, jax.random.split(key, eval_steps))
+        return solved.sum() / jnp.maximum(done.sum(), 1.0)
 
     def train_step(state, key):
         update_key, eval_key = jax.random.split(key)
         new_state, _ = algorithm.update_step(state, update_key)
-        return new_state, rollout_reward(new_state, eval_key)
+        return new_state, solve_rate(new_state, eval_key)
 
     initialize = jax.jit(algorithm.init, keep_unused=True)
     step = jax.jit(train_step, keep_unused=True)
 
-    new_state, metric = step(state, step_key)
-    print(f"jax ran clean: metric (mean reward) = {float(metric):.4f}")
+    if not args.skip_check:
+        _, metric = step(state, step_key)
+        print(f"jax ran clean: metric (solve rate) = {float(metric):.4f}")
 
     exported = {
         "init": export.export(initialize)(init_key),

@@ -7,10 +7,10 @@
 //   /assets/pomdp/<model>/init.mlir        key         -> state
 //   /assets/pomdp/<model>/train_step.mlir  state, key  -> state', metric
 //
-// If those modules are present the trainer runs them for real. Until they are (the
-// Wordle env is being finalised), it runs a clearly-labelled illustrative preview
-// so the interface is fully alive. The preview invents no benchmark; all three
-// torsos climb under the same loop, which is the whole claim.
+// The metric is the solve rate (episodes solved), which climbs from the ~0.3
+// random-guess baseline to ~1.0 within the fixed budget. The three torsos train
+// under one identical PPO; if a module ever fails to load the trainer falls back to
+// a clearly-labelled illustrative preview so the interface stays alive.
 //
 // Colours are the dataviz reference palette's first three categorical slots
 // (blue / green / magenta), validated all-pairs on this site's light and dark
@@ -29,15 +29,10 @@ const MODELS = [
   { id: "custom", label: "Yours", varName: "--s4", note: "uploaded policy", custom: true },
 ];
 
-const STEPS_PER_UPDATE = 256; // num_envs (16) x num_steps (16) collected per PPO update
-// The budget slider spans two orders of magnitude, so snap it to round values.
-const BUDGETS = [10_000, 25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000];
-const DEFAULT_BUDGET = 3; // index into BUDGETS -> 100k timesteps
+const MAX_UPDATES = 350; // a fixed budget: enough for every torso to solve Wordle
 const FRAME_BUDGET_MS = 22; // live backend: pack ~this many ms of updates into each frame
 const METRIC_LABEL = "Episodes solved";
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const updatesFor = (budget) => Math.max(2, Math.ceil(budget / STEPS_PER_UPDATE));
-const fmtSteps = (n) => (n >= 1e6 ? +(n / 1e6).toFixed(n % 1e6 ? 1 : 0) + "M" : n >= 1e3 ? Math.round(n / 1e3) + "k" : String(n));
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -154,7 +149,7 @@ class Plot {
     this.canvas = canvas;
     this.root = root;
     this.labelOf = labelOf;
-    this.maxUpdates = updatesFor(BUDGETS[DEFAULT_BUDGET]);
+    this.maxUpdates = MAX_UPDATES;
     this.ctx = canvas.getContext("2d");
     this.series = new Map(); // id -> { data: [] }
     this.active = null;
@@ -192,10 +187,6 @@ class Plot {
   }
   append(id, value) {
     this.ensure(id).data.push(value); // batch without redrawing; the caller draws once per frame
-  }
-  setMaxUpdates(n) {
-    this.maxUpdates = Math.max(2, n | 0);
-    this.draw();
   }
   clear(id) {
     if (this.series.has(id)) this.series.get(id).data = [];
@@ -270,7 +261,7 @@ class Plot {
     }
     ctx.fillStyle = muted;
     ctx.textAlign = "center";
-    ctx.fillText("Timesteps", (g.x0 + g.x1) / 2, h - 8);
+    ctx.fillText("Training updates", (g.x0 + g.x1) / 2, h - 8);
 
     const order = [...this.series.keys()].sort((a, b) => (a === this.active ? 1 : 0) - (b === this.active ? 1 : 0));
 
@@ -476,20 +467,6 @@ html[data-theme="light"] #${MOUNT}{ --s1:#2a78d6; --s2:#008300; --s3:#e87ba4; --
 #${MOUNT} button:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
 #${MOUNT} svg{ display:block; }
 
-/* training-budget slider */
-#${MOUNT} .controls{ display:flex; align-items:center; gap:.75rem; margin-bottom:.9rem; }
-#${MOUNT} .controls .lbl{ font-size:.72rem; font-weight:650; color:var(--muted); letter-spacing:-.01em; white-space:nowrap; }
-#${MOUNT} .controls input[type=range]{ -webkit-appearance:none; appearance:none; flex:1 1 auto; height:4px;
-  border-radius:999px; background:var(--track); cursor:pointer; }
-#${MOUNT} .controls input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:16px; height:16px;
-  border-radius:50%; background:var(--accent); border:2px solid var(--surface);
-  box-shadow:0 1px 3px rgba(0,0,0,.25); cursor:pointer; }
-#${MOUNT} .controls input[type=range]::-moz-range-thumb{ width:16px; height:16px; border-radius:50%;
-  background:var(--accent); border:2px solid var(--surface); box-shadow:0 1px 3px rgba(0,0,0,.25); cursor:pointer; }
-#${MOUNT} .controls input[type=range]:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; }
-#${MOUNT} .controls .pill{ font-size:.72rem; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums;
-  padding:.22rem .55rem; border-radius:8px; background:var(--track); white-space:nowrap; min-width:5rem; text-align:center; }
-
 /* hero readout row sits ABOVE the chart, never over it */
 #${MOUNT} .readout{ display:flex; align-items:flex-end; justify-content:space-between;
   gap:1rem; margin-bottom:.5rem; }
@@ -572,19 +549,6 @@ function mount(root) {
   actions.append(uploadBtn, resetBtn, trainBtn);
   head.append(seg, spacer, actions);
 
-  const controls = el("div", "controls");
-  const budgetLbl = el("span", "lbl");
-  budgetLbl.textContent = "Training budget";
-  const budget = el("input");
-  budget.type = "range";
-  budget.min = "0";
-  budget.max = String(BUDGETS.length - 1);
-  budget.step = "1";
-  budget.value = String(DEFAULT_BUDGET);
-  budget.setAttribute("aria-label", "Training budget in timesteps");
-  const budgetPill = el("span", "pill");
-  controls.append(budgetLbl, budget, budgetPill);
-
   const readout = el("div", "readout");
   const hero = el("div");
   hero.innerHTML = '<div class="big">&nbsp;</div><div class="sub"></div>';
@@ -605,7 +569,7 @@ function mount(root) {
     "exported from any network that follows the same <code>(state, key)</code> interface, and " +
     "whlo compiles and trains it right here.";
 
-  card.append(head, controls, readout, stage, msg, cap);
+  card.append(head, readout, stage, msg, cap);
   root.append(card, fileInput);
   return {
     seg,
@@ -616,8 +580,6 @@ function mount(root) {
     fileInput,
     resetBtn,
     trainBtn,
-    budget,
-    budgetPill,
     canvas,
     readout,
     badge,
@@ -642,9 +604,6 @@ async function main() {
     backends: new Map(),
     metrics: new Map(),
     shown: new Map(), // animated hero value per model
-    budgetIndex: DEFAULT_BUDGET,
-    budget: BUDGETS[DEFAULT_BUDGET],
-    maxUpdates: updatesFor(BUDGETS[DEFAULT_BUDGET]),
   };
 
   const bigEl = ui.readout.querySelector(".big");
@@ -680,8 +639,7 @@ async function main() {
   function renderHud(target) {
     const b = state.backends.get(state.modelId);
     const upd = b ? b.updates : 0;
-    const trained = upd * STEPS_PER_UPDATE;
-    subEl.textContent = `${labelOf(state.modelId)} · ${METRIC_LABEL} · ${trained.toLocaleString()} / ${fmtSteps(state.budget)} steps`;
+    subEl.textContent = `${labelOf(state.modelId)} · ${METRIC_LABEL} · Update ${upd} / ${MAX_UPDATES}`;
     if (target == null) {
       bigEl.innerHTML = "&nbsp;";
       return;
@@ -697,15 +655,6 @@ async function main() {
       bigEl.textContent = Math.round(next * 100) + "%";
       requestAnimationFrame(() => renderHud(state.metrics.get(state.modelId)));
     }
-  }
-
-  function setBudget(index) {
-    state.budgetIndex = index;
-    state.budget = BUDGETS[index];
-    state.maxUpdates = updatesFor(state.budget);
-    ui.budgetPill.textContent = fmtSteps(state.budget) + " steps";
-    plot.setMaxUpdates(state.maxUpdates);
-    renderHud(state.metrics.get(state.modelId) ?? null);
   }
 
   async function backendFor(modelId) {
@@ -726,10 +675,9 @@ async function main() {
     const backend = await backendFor(state.modelId);
     setBadge(backend.live);
     plot.setRunning(true);
-    // Read the target once; a slider change stops the loop, so the next run picks
-    // up the new budget. Each frame packs in as many updates as fit its time slice
-    // (live) or a fixed pair (mock, so its illustrative curve still fills gradually).
-    const maxUpdates = state.maxUpdates;
+    // Each frame packs in as many updates as fit its time slice (live) or a fixed
+    // pair (mock, so its illustrative curve still fills gradually).
+    const maxUpdates = MAX_UPDATES;
     while (state.running && backend.updates < maxUpdates) {
       let metric;
       if (backend.live) {
@@ -829,10 +777,6 @@ async function main() {
     plot.clear(state.modelId);
     renderHud(null);
   });
-  ui.budget.addEventListener("input", () => {
-    stop(); // changing the target ends the current run; press Train to continue toward it
-    setBudget(Number(ui.budget.value));
-  });
   ui.modelBtns.forEach((b) => b.addEventListener("click", () => selectModel(b.dataset.id)));
   ui.uploadBtn.addEventListener("click", () => ui.fileInput.click());
   ui.fileInput.addEventListener("change", (e) => {
@@ -842,7 +786,6 @@ async function main() {
   window.addEventListener("resize", positionThumb);
 
   paintSelector();
-  setBudget(state.budgetIndex);
   const first = await backendFor(state.modelId);
   setBadge(first.live);
   renderHud(null);
