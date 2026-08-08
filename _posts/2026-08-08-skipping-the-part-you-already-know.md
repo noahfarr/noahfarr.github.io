@@ -176,14 +176,30 @@ $$m$$ is near zero there is no prefix to skip and nothing on offer.
 One implementation choice dominates all of the weighting subtleties: what counts as a
 distinct state worth storing.
 
-If you reservoir-sample the stream of visited states, your archive is _visitation weighted_,
-a time-average of the occupancies you have induced so far. That object inherits their decay
-in depth, which in a hard-exploration problem is exponential — so the archive concentrates
-overwhelmingly on the shallow states you were already going to see. If instead you key the
-archive by a discrete cell and keep one representative per cell, a state visited ten
-thousand times occupies the same single slot as one visited once, and the weighting collapses
-by construction. This is the cell mechanism from Go-Explore, and the difference between the
-two is not a constant factor.
+If you reservoir-sample the stream of visited states, your archive is _visitation weighted_:
+it approximates $$d^\pi_\rho$$, the current policy's own occupancy. It is tempting to call
+that useless, and it is not. Restarting from a state drawn part-way through an episode and
+then continuing pushes the composed occupancy _later_ — the time weighting goes from
+$$\gamma^n$$ to $$(n+1)\gamma^n$$ — so visitation weighting does skip the prefix, which is
+exactly what you wanted. What it cannot do is change the _support_. Every state it can
+restart from is one the policy already reaches, so it discovers nothing.
+
+That distinction matters because the deficit it fails to fix is the one that bites. In a
+hard-exploration problem the mass at depth $$c$$ decays exponentially in $$c$$, and shifting
+the time weighting by a polynomial factor does not touch that. So visitation weighting is a
+no-op for exploration and genuinely useful for sample efficiency — the two channels again.
+
+Keying the archive by a discrete cell and keeping one representative per cell is what
+addresses the exploration side: a state visited ten thousand times occupies the same single
+slot as one visited once, so the exponential visitation decay stops governing where you
+restart. This is the cell mechanism from Go-Explore, and on the exploration channel the
+difference is not a constant factor.
+
+There is a second, subtler point about cells, which is that uniform-over-cells is not the
+same as uniform-over-_progress_. If deep states are reachable from fewer predecessors than
+shallow ones, then a flat measure over cells hands out mass in proportion to how many cells
+each depth happens to contain, and quietly starves the frontier. Equalising across a progress
+variable instead fixes that, and it requires nothing beyond a scalar notion of progress.
 
 There is a smaller trap underneath. If a cell key is hashed into a power-of-two-sized table,
 the modulo takes the _low_ bits, so a key without good low-bit entropy silently throws cells
