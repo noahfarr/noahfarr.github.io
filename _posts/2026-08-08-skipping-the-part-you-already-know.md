@@ -2,7 +2,7 @@
 layout: post
 title: skipping the part you already know
 date: 2026-08-08 18:00:00 +0200
-description: notes on modified restart distributions, what the theory says the archive should cover, and why covering more of it did not make the agent any better
+description: what a modified restart distribution is actually optimising, why the answer involves the optimal policy, and the two different things you might be asking it for
 tags: reinforcement-learning exploration sample-efficiency
 categories: research
 featured: true
@@ -19,9 +19,11 @@ This is an old idea. Go-Explore builds an archive of visited states and returns 
 {% cite ecoffet2021goexplore --file references %}, Tavakoli and colleagues adapt the restart
 distribution from an experience memory {% cite tavakoli2018restart --file references %}, and
 Salimans and Chen solve Montezuma's Revenge by restarting along a single demonstration
-{% cite salimans2018montezuma --file references %}. I spent a while trying to understand what
-these methods are actually optimising, and then measuring whether it works. The theory turned
-out to be clean. The measurements were mostly negative, in an instructive way.
+{% cite salimans2018montezuma --file references %}. I have been trying to work out what these
+methods are actually optimising, because the answer turns out to be unusually clean, and it
+tells you which of the many available heuristics are principled and which are guesses. This
+post is about the formulation. The measurements are still in progress and can wait for their
+own writeup.
 
 ## What you are choosing
 
@@ -35,7 +37,7 @@ $$
 $$
 
 where $$\nu$$ is the archive's distribution over stored states and $$\lambda$$ is how often
-a reset draws from it. So $$\lambda$$ is a mixing weight and $$\nu$$ is the real design
+a reset draws from it. So $$\lambda$$ is a mixing weight, and $$\nu$$ is the real design
 question: **which states should the archive put mass on?**
 
 The tension is visible in the notation. You train on $$\mu$$ and you are graded on
@@ -62,8 +64,7 @@ $$
 $$
 
 So the archive should cover the states the _optimal_ policy spends its time in. Not the
-reachable set, not the frontier, not whatever is novel. Mass on states $$\pi^\star$$ never
-visits is wasted.
+reachable set, not whatever is novel. Mass on states $$\pi^\star$$ never visits is wasted.
 
 Two things about this are worth holding onto.
 
@@ -78,8 +79,8 @@ coverage.
 knowing how to solve the task. This is not a technical gap, it is the whole problem
 restated.
 
-Which reframes every heuristic in this literature as a _prior about where
-$$\pi^\star$$ goes_:
+Which reframes every heuristic in this literature as a _prior about where $$\pi^\star$$
+goes_:
 
 | how you weight the archive        | what it assumes                              |
 | --------------------------------- | -------------------------------------------- |
@@ -89,133 +90,142 @@ $$\pi^\star$$ goes_:
 | toward the frontier               | "it goes further than I have"                |
 | from a demonstration              | you are handed the answer                    |
 
-Read that way, it is not surprising that the demonstration-based method is the one that
-solves Montezuma, and that the others are evaluated on how much they explore.
+Read that way, it is not surprising that the demonstration-based methods are the ones that
+solve the hardest exploration problems, and that the others tend to be evaluated on how much
+they explore.
 
-## The one choice that matters exponentially
+## Two different things you might be asking for
 
-Before any of the weighting subtleties, there is a cruder decision that dominates
-everything: what counts as a distinct state worth storing.
+This is the distinction I found most clarifying, and it is easy to blur.
 
-If you reservoir-sample the stream of visited states, your archive is _visitation
-weighted_ — a time-average of the occupancies you have induced so far. That object inherits
-their exponential decay in depth. If instead you key the archive by a discrete cell and keep
-one representative per cell, a state visited ten thousand times occupies the same single
-slot as one visited once. This is the cell mechanism from Go-Explore, and the gap between
-the two is not a constant factor.
+**Exploration.** You want the archive to reach where $$\pi^\star$$ goes, so that the optimal
+policy is learnable at all. The target is $$d^{\pi^\star}_\rho$$, it needs an oracle you do
+not have, and it is the only one of the two that can put mass somewhere you have never been.
 
-On DeepSea, a chain where the agent must take the same action $$N$$ times in a row to see
-any reward, with a fixed uniform-random policy and half of resets drawn from the archive:
+**Sample efficiency.** You want the samples you collect to be _informative_. The gradient
+contribution of a state is proportional to the size of the advantage there, so a region the
+policy has already mastered costs budget and produces nothing. The target is
 
-| depth $$N$$ | no archive  | reservoir over visits | uniform over cells |
-| ----------- | ----------- | --------------------- | ------------------ |
-| 14          | 7.3e4       | 6.7e4                 | **4.5e3**          |
-| 18          | 1.8e6       | 1.8e6                 | **1.6e4**          |
-| 22          | 2.8e7       | over budget           | **4.1e4**          |
-| 30          | over budget | over budget           | **2.1e5**          |
+$$
+\nu \;\propto\; d^{\pi}_\rho(s)\,\lVert g(s) \rVert ,
+$$
 
-Median environment steps to first reach the goal, 21 seeds. Reservoir-over-visits is
-indistinguishable from having no archive at all — still exponential in the horizon. Keying
-by cell is polynomial. Both are "uniform sampling from an archive of visited states", and
-they are separated exponentially.
+the current policy's occupancy weighted by gradient magnitude. Every quantity in that is
+observable: your rollouts sample $$d^\pi_\rho$$, and the advantages are already computed
+during the update. No oracle, no circularity. The catch is that it can only reweight the
+support you already have — $$\lVert g(s) \rVert$$ is not defined at states you have never
+visited, so it can never tell you the archive is missing something.
 
-There is a smaller lesson underneath. If a cell key is hashed into a
-power-of-two-sized table, the modulo takes the _low_ bits, so a key without good low-bit
-entropy silently throws cells away. My first Craftax key lost 50.8% of distinct cells to
-slot collisions; a proper avalanche brought that to 4.5%. Nothing errors, the archive just
-quietly holds half of what you think it does.
+They agree about the frontier and disagree about the prefix, and the disagreement is free:
+$$\rho$$ already covers the prefix by definition, so the archive never needed mass there.
 
-## And then it did not work
+If you want _both_, the performance difference lemma gives the combined target directly.
+Since
 
-With cells keyed properly, coverage improves robustly and significantly. On DeepSea, with
-staggered resets in both arms so the comparison is not confounded by episode-phase
-alignment {% cite bharthulwar2025staggered --file references %}, the archive reaches
-substantially deeper:
+$$
+J_\rho(\pi^\star) - J_\rho(\pi) = \frac{1}{1-\gamma}\,
+\mathbb{E}_{s \sim d^{\pi^\star}_\rho}\,\mathbb{E}_{a \sim \pi^\star}\big[A^\pi(s,a)\big],
+$$
 
-| depth $$N$$ | frontier reached, no archive | with archive |
-| ----------- | ---------------------------- | ------------ |
-| 16          | 11.50 ± 1.44                 | 14.00 ± 0.41 |
-| 20          | 14.40 ± 1.35                 | 17.20 ± 1.00 |
-| 24          | 14.70 ± 2.07                 | 19.04 ± 1.57 |
-| 28          | 15.80 ± 2.44                 | 20.50 ± 1.25 |
+the quantity you are driving to zero is an integral over $$d^{\pi^\star}_\rho$$ weighted by
+how much better $$\pi^\star$$ is than you at each state. The variance-minimising proposal for
+that integral is the product,
 
-Ten seeds per arm, significant at every depth, and the gap widens with the horizon. At depth
-20 the effect is eight sigma.
+$$
+\nu^\star \;\propto\; d^{\pi^\star}_\rho(s)\,
+\big\lvert \mathbb{E}_{a \sim \pi^\star}[A^\pi(s,a)] \big\rvert ,
+$$
 
-Then I measured whether the agent got better. Annealing $$\lambda$$ to zero over training so
-the final phase is an unbiased measurement of $$J_\rho$$, with forty seeds per arm:
+which is zero on the mastered prefix because the second factor vanishes, zero off
+$$\pi^\star$$'s path because the first does, and large exactly at the frontier. That is a
+nice derivation of "restart near the edge of what you know" rather than an assertion of it.
 
-|            | solve rate | $$J_\rho$$       |
-| ---------- | ---------- | ---------------- |
-| no archive | 1/40       | −0.0007 ± 0.0023 |
-| archive    | 2/40       | +0.0016 ± 0.0030 |
+It also makes something explicit that is easy to miss: the combined target contains
+$$\pi^\star$$ **twice**. The sample-efficiency objective is the only one of the three that is
+genuinely oracle-free.
 
-Fisher exact $$p = 0.50$$. Nothing. And at ten seeds I had 0/10 versus 5/20 and was briefly
-convinced I had something.
+## How to handle a $$\pi^\star$$ you do not know
 
-One trap worth naming. A Mann-Whitney test on the returns comes out significant
-($$p = 0.001$$), and it is significant for the wrong reason. DeepSea charges a small cost
-for each step in the rewarding direction, so once the goal is never reached, return is
-_minus_ the amount of exploring you did. The test was ranking runs by how little they
-explored. The medians give it away: both are still negative.
+The standard answer in the theory is to assume it away: state that the concentrability
+coefficient is bounded and proceed. That is fine until the coefficient is enormous, which is
+exactly the case on the problems this mechanism is meant for, and then the bound says
+nothing.
 
-Craftax Classic said the same thing more gently. Ten seeds, no archive 10.92 ± 0.14
-achievements, with archive 10.87 ± 0.15, $$p = 0.59$$ — and the archive arm behind at every
-single epoch, catching up only as the annealing removed it. There, the mechanism was a pure
-cost.
+There are three honest alternatives.
 
-## Why, and the cheap thing I should have done first
+**Be minimax.** If you do not know $$\pi^\star$$, minimise the worst case over all policies
+rather than guessing. That is a well-posed problem, needs no oracle, and the object it
+produces is the distribution achieving the _coverability_ coefficient. It also explains why
+uniform-over-discovered-states is a reasonable default: it approximates the minimax solution,
+which has to cover every policy's occupancy at once. Not a shrug, an approximation to
+something specific.
 
-The concentrability picture explains it quantitatively. DeepSea is small enough to compute
-$$C$$ exactly by dynamic programming, because $$\pi^\star$$ is known in closed form. At
-depth 20:
+**Use sound bounds.** The advantage-gap factor admits a one-sided estimate. The best return
+you have actually _witnessed_ from a state is a lower bound on its optimal value in
+deterministic dynamics, so the gap you compute from it can only understate the true gap. You
+never chase a phantom; you act only on witnessed improvement.
 
-| $$\nu$$                              | $$C(\mu)$$ | vs no archive |
-| ------------------------------------ | ---------- | ------------- |
-| no archive                           | 5.02e4     | 1.0x          |
-| visitation weighted                  | 4.58e4     | 1.1x          |
-| uniform over cells                   | 3.47e2     | 145x          |
-| stratified by progress               | 1.79e2     | 280x          |
-| frontier tilt, $$\tau = 4$$          | **1.18e2** | **426x**      |
-| frontier tilt, greedy                | 1.44e3     | 35x           |
-| oracle, $$\nu = d^{\pi^\star}_\rho$$ | 2.44e1     | 2055x         |
+**Or avoid it.** The sample-efficiency target above involves no $$\pi^\star$$ at all. It is
+the part of this that is unconditionally defensible, and it comes with a ceiling you can
+measure in advance: if a fraction $$m$$ of each episode is already mastered, the most you can
+possibly win is about $$1/(1-m)$$. Worth computing before building anything, because if
+$$m$$ is near zero there is no prefix to skip and nothing on offer.
 
-The archive really does what the theory says: it reduces the coefficient by 426x. And
-$$C \approx 10^2$$ is _still large_. Sample complexity goes like $$\sqrt{C\,\varepsilon}$$,
-so being 426 times less hopeless is not the same as being tractable. What caps it is that
-the archive covers 85.6% of the optimal policy's occupancy and misses the last few states —
-which is exactly where all the reward lives.
+## Cells, not visits
 
-The part that stings is that this table costs seconds to compute and I produced it after
-about four hundred training runs. It also reproduces things those runs told me expensively:
-that visitation weighting is worth nothing (1.1x), that the frontier tilt has an interior
-optimum around $$\tau = 4$$, and that tilting greedily is worse than not tilting at all.
-Scoring candidate restart distributions offline against a reference occupancy, before
-spending any GPU time, is the obvious move and I did it last.
+One implementation choice dominates all of the weighting subtleties: what counts as a
+distinct state worth storing.
 
-## What I take from this
+If you reservoir-sample the stream of visited states, your archive is _visitation weighted_,
+a time-average of the occupancies you have induced so far. That object inherits their decay
+in depth, which in a hard-exploration problem is exponential — so the archive concentrates
+overwhelmingly on the shallow states you were already going to see. If instead you key the
+archive by a discrete cell and keep one representative per cell, a state visited ten
+thousand times occupies the same single slot as one visited once, and the weighting collapses
+by construction. This is the cell mechanism from Go-Explore, and the difference between the
+two is not a constant factor.
 
-I set out to build an exploration method and found that the quantity I was steering by and
-the quantity that governs the bound point in different directions. Coverage went up by eight
-sigma and $$J_\rho$$ did not move. That is worth saying out loud, because much of this
-literature — including the strongest recent work on learned archive representations
-{% cite gallouedec2023lge --file references %} — reports exploration metrics rather than
-return.
+There is a smaller trap underneath. If a cell key is hashed into a power-of-two-sized table,
+the modulo takes the _low_ bits, so a key without good low-bit entropy silently throws cells
+away. Nothing errors; the archive just quietly holds a fraction of what you think it does,
+and every downstream diagnostic looks plausible.
 
-There is also a framing I would start from if I did this again. "Skip the mastered prefix"
-is a _sample efficiency_ claim, not an exploration claim, and it has a target that needs no
-oracle: put mass where the advantage is still nonzero, which is observable from the current
-policy. It also comes with a ceiling you can measure in advance. If a fraction $$m$$ of each
-episode is mastered, the most you can win is about $$1/(1-m)$$. In both settings I tested,
-$$m$$ was near zero — the agent had not mastered anything yet — so there was no prefix to
-skip and nothing the mechanism could have bought. I tested a good idea in the two regimes
-where it has nothing to offer.
+## What is actually new here
 
-The code is a pair of small wrappers in my JAX RL library, and I am still working on this;
-the first thing to fix is that the informativeness signal should come from the per-step
-advantage, which is dense and already computed, rather than from the sparse witnessed
-returns I used. If you work on restart distributions, curricula, or exploration and want to
-compare notes, [get in touch](/).
+Very little of the above, and that is worth stating plainly. That $$\nu^\star \propto
+d^{\pi^\star}_\rho$$ is a line of Lagrange applied to a twenty-year-old bound. Cell-keyed
+archives are Go-Explore. Adaptive restart distributions from an experience memory are
+Tavakoli and colleagues, including the caveat about restricted policy classes. Replacing
+hand-designed cells with a learned latent representation is already done and works
+{% cite gallouedec2023lge --file references %}.
+
+What I have not found is anyone connecting the two halves — using the concentrability
+coefficient as a _design tool_ for the archive, rather than as an assumption in a proof. The
+practical line picks restart weightings by heuristic; the theoretical line treats the restart
+distribution as given. Scoring candidate distributions against a reference occupancy, before
+spending any training compute, sits in between, and it makes several of the choices above
+decidable rather than a matter of taste.
+
+The other gap is a criterion for the cells. Latent Go-Explore says its method combines with
+_any_ strategy for learning a representation, and leaves open which one you should want. The
+answer implied by the formulation is a value-preserving abstraction: cells should merge states
+with equal optimal value, which is the classical condition for state aggregation, and the
+within-cell spread of value is a measurable check on whether yours do.
+
+## Where I would start
+
+If I were beginning this again, I would start from the sample-efficiency framing rather than
+the exploration one. It has an observable target, it needs no oracle, and it comes with a
+ceiling you can measure from a single control run instead of discovering empirically after
+the fact. Exploration then enters as a support-expansion prior on top, which is honest about
+being a guess.
+
+And I would compute the coefficient before running anything. It is the difference between
+choosing $$\nu$$ by argument and choosing it by sweep.
+
+The code is a pair of small wrappers in my JAX RL library. If you work on restart
+distributions, curricula, or exploration and want to compare notes,
+[get in touch](/).
 
 ## References
 
