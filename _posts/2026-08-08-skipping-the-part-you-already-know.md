@@ -28,7 +28,7 @@ out to be clean. The measurements were mostly negative, in an instructive way.
 Write $$\rho$$ for the environment's real initial state distribution, the thing
 `env.reset()` samples. You are graded on $$J_\rho$$: expected return when you start where
 the task says you start. What the archive lets you change is the distribution you actually
-*train* from,
+_train_ from,
 
 $$
 \mu = (1-\lambda)\,\rho + \lambda\,\nu,
@@ -61,13 +61,13 @@ $$
 \nu^\star \propto d^{\pi^\star}_\rho .
 $$
 
-So the archive should cover the states the *optimal* policy spends its time in. Not the
+So the archive should cover the states the _optimal_ policy spends its time in. Not the
 reachable set, not the frontier, not whatever is novel. Mass on states $$\pi^\star$$ never
 visits is wasted.
 
 Two things about this are worth holding onto.
 
-**It is asymmetric.** The penalty comes from $$\nu$$ being *small* where
+**It is asymmetric.** The penalty comes from $$\nu$$ being _small_ where
 $$d^{\pi^\star}_\rho$$ is large, because you are dividing by $$\nu$$. A hole where the
 optimal policy goes is catastrophic. Excess mass where it never goes merely dilutes,
 linearly. You can afford to be wrong by covering too much; you cannot afford to be wrong by
@@ -78,16 +78,16 @@ coverage.
 knowing how to solve the task. This is not a technical gap, it is the whole problem
 restated.
 
-Which reframes every heuristic in this literature as a *prior about where
-$$\pi^\star$$ goes*:
+Which reframes every heuristic in this literature as a _prior about where
+$$\pi^\star$$ goes_:
 
-| how you weight the archive | what it assumes |
-| --- | --- |
-| by visitation frequency | "the optimal policy goes where I already go" |
-| uniformly over discovered states | "I know nothing" |
-| by progress, evenly across stages | "it advances steadily" |
-| toward the frontier | "it goes further than I have" |
-| from a demonstration | you are handed the answer |
+| how you weight the archive        | what it assumes                              |
+| --------------------------------- | -------------------------------------------- |
+| by visitation frequency           | "the optimal policy goes where I already go" |
+| uniformly over discovered states  | "I know nothing"                             |
+| by progress, evenly across stages | "it advances steadily"                       |
+| toward the frontier               | "it goes further than I have"                |
+| from a demonstration              | you are handed the answer                    |
 
 Read that way, it is not surprising that the demonstration-based method is the one that
 solves Montezuma, and that the others are evaluated on how much they explore.
@@ -97,8 +97,8 @@ solves Montezuma, and that the others are evaluated on how much they explore.
 Before any of the weighting subtleties, there is a cruder decision that dominates
 everything: what counts as a distinct state worth storing.
 
-If you reservoir-sample the stream of visited states, your archive is *visitation
-weighted* — a time-average of the occupancies you have induced so far. That object inherits
+If you reservoir-sample the stream of visited states, your archive is _visitation
+weighted_ — a time-average of the occupancies you have induced so far. That object inherits
 their exponential decay in depth. If instead you key the archive by a discrete cell and keep
 one representative per cell, a state visited ten thousand times occupies the same single
 slot as one visited once. This is the cell mechanism from Go-Explore, and the gap between
@@ -107,12 +107,12 @@ the two is not a constant factor.
 On DeepSea, a chain where the agent must take the same action $$N$$ times in a row to see
 any reward, with a fixed uniform-random policy and half of resets drawn from the archive:
 
-| depth $$N$$ | no archive | reservoir over visits | uniform over cells |
-| --- | --- | --- | --- |
-| 14 | 7.3e4 | 6.7e4 | **4.5e3** |
-| 18 | 1.8e6 | 1.8e6 | **1.6e4** |
-| 22 | 2.8e7 | over budget | **4.1e4** |
-| 30 | over budget | over budget | **2.1e5** |
+| depth $$N$$ | no archive  | reservoir over visits | uniform over cells |
+| ----------- | ----------- | --------------------- | ------------------ |
+| 14          | 7.3e4       | 6.7e4                 | **4.5e3**          |
+| 18          | 1.8e6       | 1.8e6                 | **1.6e4**          |
+| 22          | 2.8e7       | over budget           | **4.1e4**          |
+| 30          | over budget | over budget           | **2.1e5**          |
 
 Median environment steps to first reach the goal, 21 seeds. Reservoir-over-visits is
 indistinguishable from having no archive at all — still exponential in the horizon. Keying
@@ -120,7 +120,7 @@ by cell is polynomial. Both are "uniform sampling from an archive of visited sta
 they are separated exponentially.
 
 There is a smaller lesson underneath. If a cell key is hashed into a
-power-of-two-sized table, the modulo takes the *low* bits, so a key without good low-bit
+power-of-two-sized table, the modulo takes the _low_ bits, so a key without good low-bit
 entropy silently throws cells away. My first Craftax key lost 50.8% of distinct cells to
 slot collisions; a proper avalanche brought that to 4.5%. Nothing errors, the archive just
 quietly holds half of what you think it does.
@@ -133,11 +133,11 @@ alignment {% cite bharthulwar2025staggered --file references %}, the archive rea
 substantially deeper:
 
 | depth $$N$$ | frontier reached, no archive | with archive |
-| --- | --- | --- |
-| 16 | 11.50 ± 1.44 | 14.00 ± 0.41 |
-| 20 | 14.40 ± 1.35 | 17.20 ± 1.00 |
-| 24 | 14.70 ± 2.07 | 19.04 ± 1.57 |
-| 28 | 15.80 ± 2.44 | 20.50 ± 1.25 |
+| ----------- | ---------------------------- | ------------ |
+| 16          | 11.50 ± 1.44                 | 14.00 ± 0.41 |
+| 20          | 14.40 ± 1.35                 | 17.20 ± 1.00 |
+| 24          | 14.70 ± 2.07                 | 19.04 ± 1.57 |
+| 28          | 15.80 ± 2.44                 | 20.50 ± 1.25 |
 
 Ten seeds per arm, significant at every depth, and the gap widens with the horizon. At depth
 20 the effect is eight sigma.
@@ -145,10 +145,10 @@ Ten seeds per arm, significant at every depth, and the gap widens with the horiz
 Then I measured whether the agent got better. Annealing $$\lambda$$ to zero over training so
 the final phase is an unbiased measurement of $$J_\rho$$, with forty seeds per arm:
 
-| | solve rate | $$J_\rho$$ |
-| --- | --- | --- |
-| no archive | 1/40 | −0.0007 ± 0.0023 |
-| archive | 2/40 | +0.0016 ± 0.0030 |
+|            | solve rate | $$J_\rho$$       |
+| ---------- | ---------- | ---------------- |
+| no archive | 1/40       | −0.0007 ± 0.0023 |
+| archive    | 2/40       | +0.0016 ± 0.0030 |
 
 Fisher exact $$p = 0.50$$. Nothing. And at ten seeds I had 0/10 versus 5/20 and was briefly
 convinced I had something.
@@ -156,7 +156,7 @@ convinced I had something.
 One trap worth naming. A Mann-Whitney test on the returns comes out significant
 ($$p = 0.001$$), and it is significant for the wrong reason. DeepSea charges a small cost
 for each step in the rewarding direction, so once the goal is never reached, return is
-*minus* the amount of exploring you did. The test was ranking runs by how little they
+_minus_ the amount of exploring you did. The test was ranking runs by how little they
 explored. The medians give it away: both are still negative.
 
 Craftax Classic said the same thing more gently. Ten seeds, no archive 10.92 ± 0.14
@@ -170,18 +170,18 @@ The concentrability picture explains it quantitatively. DeepSea is small enough 
 $$C$$ exactly by dynamic programming, because $$\pi^\star$$ is known in closed form. At
 depth 20:
 
-| $$\nu$$ | $$C(\mu)$$ | vs no archive |
-| --- | --- | --- |
-| no archive | 5.02e4 | 1.0x |
-| visitation weighted | 4.58e4 | 1.1x |
-| uniform over cells | 3.47e2 | 145x |
-| stratified by progress | 1.79e2 | 280x |
-| frontier tilt, $$\tau = 4$$ | **1.18e2** | **426x** |
-| frontier tilt, greedy | 1.44e3 | 35x |
-| oracle, $$\nu = d^{\pi^\star}_\rho$$ | 2.44e1 | 2055x |
+| $$\nu$$                              | $$C(\mu)$$ | vs no archive |
+| ------------------------------------ | ---------- | ------------- |
+| no archive                           | 5.02e4     | 1.0x          |
+| visitation weighted                  | 4.58e4     | 1.1x          |
+| uniform over cells                   | 3.47e2     | 145x          |
+| stratified by progress               | 1.79e2     | 280x          |
+| frontier tilt, $$\tau = 4$$          | **1.18e2** | **426x**      |
+| frontier tilt, greedy                | 1.44e3     | 35x           |
+| oracle, $$\nu = d^{\pi^\star}_\rho$$ | 2.44e1     | 2055x         |
 
 The archive really does what the theory says: it reduces the coefficient by 426x. And
-$$C \approx 10^2$$ is *still large*. Sample complexity goes like $$\sqrt{C\,\varepsilon}$$,
+$$C \approx 10^2$$ is _still large_. Sample complexity goes like $$\sqrt{C\,\varepsilon}$$,
 so being 426 times less hopeless is not the same as being tractable. What caps it is that
 the archive covers 85.6% of the optimal policy's occupancy and misses the last few states —
 which is exactly where all the reward lives.
@@ -203,7 +203,7 @@ literature — including the strongest recent work on learned archive representa
 return.
 
 There is also a framing I would start from if I did this again. "Skip the mastered prefix"
-is a *sample efficiency* claim, not an exploration claim, and it has a target that needs no
+is a _sample efficiency_ claim, not an exploration claim, and it has a target that needs no
 oracle: put mass where the advantage is still nonzero, which is observable from the current
 policy. It also comes with a ceiling you can measure in advance. If a fraction $$m$$ of each
 episode is mastered, the most you can win is about $$1/(1-m)$$. In both settings I tested,
