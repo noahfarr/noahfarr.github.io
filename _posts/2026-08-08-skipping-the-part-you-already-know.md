@@ -1,6 +1,6 @@
 ---
 layout: post
-title: where should the agent wake up?
+title: skipping the part you already know
 date: 2026-08-08 18:00:00 +0200
 description: notes on modified restart distributions, what the theory says the archive should cover, and why covering more of it did not make the agent any better
 tags: reinforcement-learning exploration sample-efficiency
