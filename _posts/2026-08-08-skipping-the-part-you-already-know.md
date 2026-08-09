@@ -197,13 +197,17 @@ measure in advance: if a fraction $$m$$ of each episode is already mastered, the
 possibly win is about $$1/(1-m)$$. Worth computing before building anything, because if
 $$m$$ is near zero there is no prefix to skip and nothing on offer.
 
-## Cells, not visits
+## What the archive actually lets you choose
 
-This section is about the coverage channel only. If all you want is informativeness, most of
-it does not apply, and that turns out to matter.
+Everything above treats $$\nu$$ as a free variable. It is not. $$\nu$$ is realised by an
+archive of stored states, and the rule you use to decide what goes in it already fixes a
+distribution, whether or not you meant to choose one. Before you get to weight the archive,
+the archive has weighted itself.
 
-One implementation choice dominates all of the weighting subtleties: what counts as a
-distinct state worth storing.
+So it is worth asking what measure you get by default, and how far you can move away from
+it. This is mostly a question about the coverage channel; the informativeness channel needs
+much less from the archive, which turns out to matter for how simple a usable version can
+be.
 
 If you reservoir-sample the stream of visited states, your archive is _visitation weighted_.
 It approximates $$d^\pi_\rho$$, the current policy's own occupancy. That sounds useless and
@@ -218,17 +222,18 @@ hard-exploration problem the mass at depth $$c$$ decays exponentially in $$c$$, 
 the time weighting by a polynomial factor does not touch that. Visitation weighting is a
 no-op for exploration and useful for sample efficiency.
 
-Keying the archive by a discrete cell and keeping one representative per cell is what
-addresses the exploration side. A state visited ten thousand times occupies the same single
-slot as one visited once, so the exponential visitation decay stops governing where you
-restart. This is the cell mechanism from Go-Explore, and on the exploration channel the
-difference is not a constant factor.
+To get a free choice of $$\nu$$ you have to break that coupling, and the way to do it is to
+key the archive by a discrete cell and keep one representative per cell. A state visited ten
+thousand times then occupies the same single slot as one visited once, so visitation stops
+determining where you restart and you can impose whatever measure you actually wanted. This
+is the cell mechanism from Go-Explore, and on the coverage channel the difference between
+having it and not is not a constant factor.
 
-Cells come with a second subtlety, which is that uniform-over-cells is not uniform-over-_progress_.
-If deep states are reachable from fewer predecessors than shallow ones, a flat measure over
-cells hands out mass in proportion to how many cells each depth happens to contain, and
-starves the frontier. Equalising across a progress variable fixes it, and needs nothing
-beyond a scalar notion of progress.
+Even then the freedom is not complete, because uniform-over-cells is not
+uniform-over-_progress_. If deep states are reachable from fewer predecessors than shallow
+ones, a flat measure over cells hands out mass in proportion to how many cells each depth
+happens to contain, and starves the frontier. Equalising across a progress variable fixes
+it, and needs nothing beyond a scalar notion of progress.
 
 There is a smaller trap below that. If a cell key is hashed into a power-of-two-sized table,
 the modulo takes the _low_ bits, so a key without good low-bit entropy throws cells away.
