@@ -44,10 +44,32 @@ $$\rho$$. Tavakoli and colleagues already flagged the consequence: changing the 
 distribution can change which policy is optimal, once you are searching inside a restricted
 policy class rather than over all policies.
 
-## What $$\nu$$ should be
+## Two questions, not one
 
-There is an exact answer, and it falls out of the concentrability coefficient that governs
-policy-gradient sample complexity {% cite kakade2002approximately --file references %}. Using
+Before deriving anything it is worth separating two things that "restart somewhere better"
+can mean, because they are different objectives and they want different distributions.
+
+Policy-gradient error decomposes, loosely, into an optimisation term and a statistical term
+scaled by a concentrability coefficient. The restart distribution touches both.
+
+**Coverage.** Can the optimal policy be learned at all? This is the statistical term, and it
+asks whether $$\nu$$ reaches the states $$\pi^\star$$ relies on. It is the only one of the
+two that can put mass somewhere you have never been.
+
+**Informativeness.** Are the samples you collect worth their cost? This is the optimisation
+term, and it asks whether $$\nu$$ avoids regions the policy has already mastered, where the
+advantage is zero and the gradient carries nothing.
+
+They are not the same question, and the asymmetry between them is the most useful thing in
+this post: the coverage answer is cleaner to derive but needs something you cannot have,
+while the informativeness answer is less elegant and entirely observable. I derive the clean
+one first, which is a fact about exposition rather than about which matters more.
+
+## The coverage answer
+
+For the coverage question there is an exact answer, and it falls out of the concentrability
+coefficient that governs policy-gradient sample complexity
+{% cite kakade2002approximately --file references %}. Using
 $$d^\pi_\mu \ge (1-\gamma)\mu$$ pointwise, the coefficient is bounded by
 
 $$
@@ -93,27 +115,33 @@ Read that way, it is not surprising that the demonstration-based methods are the
 solve the hardest exploration problems, and that the others tend to be evaluated on how much
 they explore.
 
-## Two different things you might be asking for
+## The informativeness answer
 
-These are easy to blur, and they want different distributions.
+The other question has no such closed form, and needs no oracle either.
 
-**Exploration.** You want the archive to reach where $$\pi^\star$$ goes, so that the optimal
-policy is learnable at all. The target is $$d^{\pi^\star}_\rho$$, it needs an oracle you do
-not have, and it is the only one of the two that can put mass somewhere you have never been.
-
-**Sample efficiency.** You want the samples you collect to be _informative_. The gradient
-contribution of a state is proportional to the size of the advantage there, so a region the
-policy has already mastered costs budget and produces nothing. The target is
+The gradient contribution of a state is proportional to the size of the advantage there, so
+a region the policy has already mastered costs budget and produces nothing. Skipping it is
+the original motivation for this whole idea, and the target is
 
 $$
 \nu \;\propto\; d^{\pi}_\rho(s)\,\lVert g(s) \rVert ,
 $$
 
 the current policy's occupancy weighted by gradient magnitude. Every quantity in that is
-observable: your rollouts sample $$d^\pi_\rho$$, and the advantages are already computed
-during the update. No oracle, no circularity. The catch is that it can only reweight the
-support you already have. The gradient magnitude is not defined at states you have never
-visited, so it can never tell you the archive is missing something.
+observable. Your rollouts sample $$d^\pi_\rho$$; the advantages are already computed during
+the update; and if you want something cheaper, the entropy of $$\pi(\cdot \mid s)$$ is a
+serviceable stand-in, since a policy that has committed at a state is a policy with nothing
+left to learn there. No oracle, no circularity.
+
+It also comes with a ceiling you can measure before building anything. If a fraction $$m$$
+of each episode is already mastered, the most this can win you is about $$1/(1-m)$$. Worth
+computing first, because if $$m$$ is near zero there is no prefix to skip and nothing on
+offer, and you will spend a long time discovering that the expensive way.
+
+The catch is the mirror image of the coverage answer's. Gradient magnitude is undefined at
+states you have never visited, so this objective can reweight the support you already have
+but can never tell you the archive is missing something. Coverage expands; informativeness
+allocates.
 
 The two agree about the frontier and disagree about the prefix, and the disagreement is free:
 $$\rho$$ already covers the prefix by definition, so the archive never needed mass there.
@@ -170,6 +198,9 @@ possibly win is about $$1/(1-m)$$. Worth computing before building anything, bec
 $$m$$ is near zero there is no prefix to skip and nothing on offer.
 
 ## Cells, not visits
+
+This section is about the coverage channel only. If all you want is informativeness, most of
+it does not apply, and that turns out to matter.
 
 One implementation choice dominates all of the weighting subtleties: what counts as a
 distinct state worth storing.
