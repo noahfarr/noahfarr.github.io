@@ -240,38 +240,6 @@ the modulo takes the _low_ bits, so a key without good low-bit entropy throws ce
 Nothing errors. The archive holds a fraction of what you think it does, and every downstream
 diagnostic looks plausible.
 
-## What is actually new here
-
-Not much of the above. That $$\nu^\star \propto d^{\pi^\star}_\rho$$ is a line of Lagrange
-applied to a twenty-year-old bound. Cell-keyed archives are Go-Explore. Adaptive restart
-distributions from an experience memory are Tavakoli and colleagues, including the caveat
-about restricted policy classes. Replacing hand-designed cells with a learned latent
-representation is already done and works {% cite gallouedec2023lge --file references %}.
-
-What I have not found is anyone connecting the two halves, using the concentrability
-coefficient as a _design tool_ for the archive rather than as an assumption in a proof. The
-practical line picks restart weightings by heuristic; the theoretical line treats the restart
-distribution as given. Scoring candidate distributions against a reference occupancy, before
-spending any training compute, sits between the two, and it turns several of the choices
-above into calculations rather than preferences.
-
-The other gap is a criterion for the cells. Latent Go-Explore says its method combines with
-_any_ strategy for learning a representation, and leaves open which one you should want. The
-answer implied by the formulation is a value-preserving abstraction: cells should merge states
-with equal optimal value, which is the classical condition for state aggregation, and the
-within-cell spread of value is a measurable check on whether yours do.
-
-## Where I would start
-
-If I were beginning this again, I would start from the sample-efficiency framing rather than
-the exploration one. It has an observable target, it needs no oracle, and it comes with a
-ceiling you can measure from a single control run instead of discovering empirically after
-the fact. Exploration then enters as a support-expansion prior on top, which is at least
-honest about being a guess.
-
-And I would compute the coefficient before running anything. It is the difference between
-choosing $$\nu$$ by argument and choosing it by sweep.
-
 The code is a pair of small wrappers in my JAX RL library. If you work on restart
 distributions, curricula, or exploration and want to compare notes,
 [get in touch](/).
