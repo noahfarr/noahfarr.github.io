@@ -110,13 +110,14 @@ restated.
 Which reframes every heuristic in this literature as a _prior about where $$\pi^\star$$
 goes_:
 
-| how you weight the archive        | what it assumes                              |
-| --------------------------------- | -------------------------------------------- |
-| by visitation frequency           | "the optimal policy goes where I already go" |
-| uniformly over discovered states  | "I know nothing"                             |
-| by progress, evenly across stages | "it advances steadily"                       |
-| toward the frontier               | "it goes further than I have"                |
-| from a demonstration              | you are handed the answer                    |
+| how you weight the archive        | what it assumes about $$\pi^\star$$            |
+| :-------------------------------- | :--------------------------------------------- |
+| by visitation frequency           | _"it goes where I already go"_                 |
+| uniformly over discovered states  | _"I know nothing"_                             |
+| by progress, evenly across stages | _"it advances steadily"_                       |
+| toward the frontier               | _"it goes further than I have"_                |
+| from a demonstration              | you are handed the answer                      |
+{: .table .table-sm }
 
 Read that way, it is not surprising that the demonstration-based methods are the ones that
 solve the hardest exploration problems, and that the others tend to be evaluated on how much
