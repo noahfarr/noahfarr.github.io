@@ -26,7 +26,7 @@ measurements are still in progress and can wait for their own writeup.
 
 > **Update (2026-08-10).** [The measurements are in](/blog/2026/the-part-you-already-know-measured/),
 > and they overturned a recommendation this post makes: the gradient-magnitude target of the
-> informativeness section is statistically indistinguishable from ignoring the score
+> exploitation section is statistically indistinguishable from ignoring the score
 > entirely, for a reason that is now a theorem, while the witnessed-gap target more than
 > doubles the baseline and beats the oracle quantity it estimates. The formulation below
 > stands; my advice about which factor to trust did not.
@@ -59,20 +59,21 @@ can mean, because they are different objectives and they want different distribu
 Policy-gradient error decomposes, loosely, into an optimisation term and a statistical term
 scaled by a concentrability coefficient. The restart distribution touches both.
 
-**Coverage.** Can the optimal policy be learned at all? This is the statistical term, and it
-asks whether $$\nu$$ reaches the states $$\pi^\star$$ relies on. It is the only one of the
+**Exploration.** Can the optimal policy be learned at all? This is the statistical term, and
+it asks whether $$\nu$$ reaches the states $$\pi^\star$$ relies on. It is the only one of the
 two that can put mass somewhere you have never been.
 
-**Informativeness.** Are the samples you collect worth their cost? This is the optimisation
+**Exploitation.** Are the samples you collect worth their cost? This is the optimisation
 term, and it asks whether $$\nu$$ avoids regions the policy has already mastered, where the
-advantage is zero and the gradient carries nothing.
+advantage is zero and the gradient carries nothing, and spends its budget where learning is
+still live.
 
 They are not the same question, and the asymmetry between them is the most useful thing in
-this post: the coverage answer is cleaner to derive but needs something you cannot have,
-while the informativeness answer is less elegant and entirely observable. I derive the clean
+this post: the exploration answer is cleaner to derive but needs something you cannot have,
+while the exploitation answer is less elegant and entirely observable. I derive the clean
 one first, which is a fact about exposition rather than about which matters more.
 
-## The coverage answer
+## The exploration answer
 
 For the coverage question there is an exact answer, and it falls out of the concentrability
 coefficient that governs policy-gradient sample complexity
@@ -123,7 +124,7 @@ Read that way, it is not surprising that the demonstration-based methods are the
 solve the hardest exploration problems, and that the others tend to be evaluated on how much
 they explore.
 
-## The informativeness answer
+## The exploitation answer
 
 The other question has no such closed form, and needs no oracle either.
 
@@ -146,9 +147,9 @@ of each episode is already mastered, the most this can win you is about $$1/(1-m
 computing first, because if $$m$$ is near zero there is no prefix to skip and nothing on
 offer, and you will spend a long time discovering that the expensive way.
 
-The catch is the mirror image of the coverage answer's. Gradient magnitude is undefined at
+The catch is the mirror image of the exploration answer's. Gradient magnitude is undefined at
 states you have never visited, so this objective can reweight the support you already have
-but can never tell you the archive is missing something. Coverage expands; informativeness
+but can never tell you the archive is missing something. Exploration expands; exploitation
 allocates.
 
 The two agree about the frontier and disagree about the prefix, and the disagreement is free:
@@ -176,7 +177,7 @@ $$\pi^\star$$'s path because the first does, and large exactly at the frontier. 
 near the edge of what you know" is something you can derive rather than assert.
 
 It also makes something explicit that is easy to miss. The combined target contains
-$$\pi^\star$$ **twice**. Of the three objectives, only sample efficiency is genuinely
+$$\pi^\star$$ **twice**. Of the three objectives, only the exploitation target is genuinely
 oracle-free.
 
 ## How to handle a $$\pi^\star$$ you do not know
@@ -199,7 +200,7 @@ you have actually _witnessed_ from a state is a lower bound on its optimal value
 deterministic dynamics, so the gap you compute from it can only understate the true gap. You
 never chase a phantom, because you act only on witnessed improvement.
 
-**Or avoid it.** The sample-efficiency target above involves no $$\pi^\star$$ at all. It is
+**Or avoid it.** The exploitation target above involves no $$\pi^\star$$ at all. It is
 the part of this that is unconditionally defensible, and it comes with a ceiling you can
 measure in advance: if a fraction $$m$$ of each episode is already mastered, the most you can
 possibly win is about $$1/(1-m)$$. Worth computing before building anything, because if
@@ -213,7 +214,7 @@ distribution, whether or not you meant to choose one. Before you get to weight t
 the archive has weighted itself.
 
 So it is worth asking what measure you get by default, and how far you can move away from
-it. This is mostly a question about the coverage channel; the informativeness channel needs
+it. This is mostly a question about the exploration channel; the exploitation channel needs
 much less from the archive, which turns out to matter for how simple a usable version can
 be.
 
@@ -228,7 +229,7 @@ is one the policy already reaches, so it discovers nothing.
 The distinction matters because the deficit it fails to fix is the one that bites. In a
 hard-exploration problem the mass at depth $$c$$ decays exponentially in $$c$$, and shifting
 the time weighting by a polynomial factor does not touch that. Visitation weighting is a
-no-op for exploration and useful for sample efficiency.
+no-op for exploration and useful for exploitation.
 
 To get a free choice of $$\nu$$ you have to break that coupling, and the way to do it is to
 key the archive by a discrete cell and keep one representative per cell. A state visited ten

@@ -15,7 +15,7 @@ one is the arm that lost.
 
 ## The taxonomy that replaced the two questions
 
-The coverage-versus-informativeness split survived contact with the theory, but the useful
+The exploration-versus-exploitation split survived contact with the theory, but the useful
 axis turned out to be a different one. Every practical score for "how much is a restart at
 $$s$$ worth" falls into one of two classes.
 
