@@ -24,6 +24,13 @@ actually optimising, because once you write it down it tells you which of the ma
 heuristics are principled and which are guesses. This post is about the formulation. The
 measurements are still in progress and can wait for their own writeup.
 
+> **Update (2026-08-10).** [The measurements are in](/blog/2026/the-part-you-already-know-measured/),
+> and they overturned a recommendation this post makes: the gradient-magnitude target of the
+> informativeness section is statistically indistinguishable from ignoring the score
+> entirely, for a reason that is now a theorem, while the witnessed-gap target more than
+> doubles the baseline and beats the oracle quantity it estimates. The formulation below
+> stands; my advice about which factor to trust did not.
+
 ## What you are choosing
 
 Write $$\rho$$ for the environment's real initial state distribution, the thing
