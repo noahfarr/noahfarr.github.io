@@ -2,7 +2,7 @@
 layout: post
 title: the value of a restart
 date: 2026-08-26 22:00:00 +0200
-description: two earlier posts asked which states deserve restart mass and got two half answers, this one derives the whole quantity, and the halves turn out to be factors of it
+description: what a restart is worth, derived as a product of four factors, and why every restart heuristic is a choice of stand-ins for the ones you cannot observe
 tags: reinforcement-learning exploration sample-efficiency
 categories: research
 featured: true
@@ -11,20 +11,19 @@ featured: true
 In a long-horizon task, an agent spends most of every episode redoing things it already
 knows how to do, and if the simulator can reset to any state it has seen, it does not have
 to. The open question was never whether to restart somewhere better, it was what "better"
-means. I have written about this twice before, once deriving that an archive should cover
-the optimal policy's states, once measuring a screen where the witnessed gap more than
-doubled a baseline while every observable score did nothing. Both attempts were circling one
-object without writing it down. This post writes it down, and the earlier half answers come
-back as factors of a single product.
+means, and the methods that answer it in practice, reverse curricula, archive-driven
+exploration, prioritized replay of levels, each answer with a different hand-designed score.
+This post derives the quantity they are all approximating, and the familiar scores come back
+as factors of a single product.
 
 ## the question, asked properly
 
 Restart selection is itself a sequential decision problem. Its states are training states,
 snapshots of the learner. Its actions are restart distributions. Its reward is terminal:
 $$J_\rho(\pi_T)$$, the evaluation return of the final policy, when episodes start where the
-task says they start. Nothing before the horizon pays anything. That last part is where both
-old posts went subtly wrong, because a restart is not supposed to buy improvement today. It
-is supposed to buy a better final policy, and the difference is exactly why curricula exist:
+task says they start. Nothing before the horizon pays anything. That last part is easy to
+get subtly wrong, because a restart is not supposed to buy improvement today. It is supposed
+to buy a better final policy, and the difference is exactly why curricula exist:
 practice can be worthless now and valuable because of what a later restart converts it into.
 
 The exact solution of this problem is a dynamic program over training states, hopeless and
@@ -80,15 +79,16 @@ all-present member of the family, and its defining vice is now visible in its ty
 signature: it endorses whatever the run already does, and it can rank no state it has never
 reached above one it visits every episode.
 
-The old posts slot in cleanly. The first post's exploration answer, cover
-$$d^{\pi^\star}_\rho$$, is the relevance factor, alone. The screen's oracle twist, where
-handing the archive the exact optimal occupancy was destructive, is what the equation
-predicts for that substitution: relevance multiplies the gain, it does not replace it, and
-relevance without the practice factors zeroes states that are off the optimal path but still
-teaching. The gradient-magnitude arm is the practice factor, alone, no relevance, and it
-measured indistinguishable from ignoring the score. And the witnessed gap, the arm that won,
-is the optimistic stand-in for $$A^{\pi_T}$$, which is why it saw what every on-policy score
-is blind to: it prices improvement the current policy has not yet made routine.
+The familiar prescriptions slot in cleanly. Covering $$d^{\pi^\star}_\rho$$, the answer
+concentrability bounds hand you {% cite kakade2002approximately --file references %}, is the
+relevance factor, alone, and used alone it is destructive rather than merely incomplete:
+relevance multiplies the gain, it does not replace it, and relevance without the practice
+factors zeroes states that are off the optimal path but still teaching. Gradient-magnitude
+and temporal-difference scores are the practice factor, alone, no relevance, and in a
+preregistered screen on a diagnostic environment they measured indistinguishable from
+ignoring the score entirely. The witnessed gap won that screen by a wide margin, and the
+equation says why: it is the optimistic stand-in for $$A^{\pi_T}$$, so it sees what every
+on-policy score is blind to, improvement the current policy has not yet made routine.
 
 ## measured, at two horizons
 
@@ -120,7 +120,7 @@ stepping-stone, DeepSea-style needles where no witnessed return precedes discove
 and do show nothing {% cite tavakoli2018restart --file references %}. The retention factor
 is set to one because I do not yet have an estimator I believe for it. And the equation is
 a theorem only for local learners; for a network it is a transplant whose discarded term is
-interference, which is a different post.
+interference, which deserves its own writeup.
 
 The summary has not changed since the first attempt, it has only become precise. Where a
 training episode begins is a free variable, and the field has been setting it with
