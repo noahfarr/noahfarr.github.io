@@ -8,13 +8,14 @@ categories: research
 featured: true
 ---
 
-I wrote two posts about restart distributions and have deleted both, which is the good kind
-of deletion. The first derived that an archive should cover the states the optimal policy
-visits, then admitted that knowing this is the problem restated. The second measured a
-preregistered screen and found that the witnessed gap, the score I could prove a soundness
-lemma about, more than doubled a baseline while the observable scores I had recommended did
-nothing. Both posts were circling one object without writing it down. This post writes it
-down, and the two half answers come back as factors of a single product.
+In a long-horizon task, an agent spends most of every episode redoing things it already
+knows how to do, and if the simulator can reset to any state it has seen, it does not have
+to. The open question was never whether to restart somewhere better, it was what "better"
+means. I have written about this twice before, once deriving that an archive should cover
+the optimal policy's states, once measuring a screen where the witnessed gap more than
+doubled a baseline while every observable score did nothing. Both attempts were circling one
+object without writing it down. This post writes it down, and the earlier half answers come
+back as factors of a single product.
 
 ## the question, asked properly
 
