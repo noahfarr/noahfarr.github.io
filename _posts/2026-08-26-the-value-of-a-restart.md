@@ -138,7 +138,7 @@ across ten seeds with standard errors below $$10^{-3}$$.
 </figure>
 
 <figure style="margin: 1.6rem auto; text-align: center;">
-<img src="{{ '/assets/img/restarts/hero_bars.svg' | relative_url }}" alt="Final evaluation return of the three schemes at a matched restart budget." style="width:100%; max-width:520px; background:#fff; padding:12px; border-radius:8px; box-sizing:border-box;">
+<img src="{{ '/assets/img/restarts/hero_bars.svg' | relative_url }}" alt="Final evaluation return of the three schemes at a matched restart budget." style="width:100%; max-width:520px; height:auto;">
 <figcaption class="caption">Matched restart budget, ten seeds: 95% of optimal return for the score, 68% for the magnitude baseline, nothing for standard training.</figcaption>
 </figure>
 
