@@ -149,7 +149,7 @@ across ten seeds with standard errors below $$10^{-3}$$.
 </style>
 <div class="bar-opt">optimal</div>
 <div class="bar-rows">
-  <div class="bar-row"><div class="bar-name">full \(h\)</div><div class="bar-track"><div class="bar-fill" style="width:94.7%;background:rgba(228,26,28,0.82);"></div></div><div class="bar-val">0.345</div></div>
+  <div class="bar-row"><div class="bar-name">full <i>h</i></div><div class="bar-track"><div class="bar-fill" style="width:94.7%;background:rgba(228,26,28,0.82);"></div></div><div class="bar-val">0.345</div></div>
   <div class="bar-row"><div class="bar-name">magnitude</div><div class="bar-track"><div class="bar-fill" style="width:67.3%;background:rgba(77,175,74,0.82);"></div></div><div class="bar-val">0.245</div></div>
   <div class="bar-row"><div class="bar-name">uniform</div><div class="bar-track"><div class="bar-fill" style="width:43.9%;background:rgba(152,78,163,0.82);"></div></div><div class="bar-val">0.160</div></div>
   <div class="bar-row"><div class="bar-name">from &rho;</div><div class="bar-track"><div class="bar-fill" style="width:0.6%;background:rgba(255,127,0,0.82);"></div></div><div class="bar-val">0.000</div></div>
