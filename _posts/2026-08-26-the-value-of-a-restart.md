@@ -43,8 +43,17 @@ is the practice it unlocks, which is the thing Go-Explore's archive growth engin
 
 **Go to first order, for a local learner.** Assume the learner is local, improving its
 decision at one state moves no other, and incremental, it improves each visited state in
-proportion to visitation. A table of per-state policies is the canonical case. Then the
-first-order change in the terminal objective decomposes over states, and the times separate:
+proportion to visitation. A table of per-state policies is the canonical case. The
+derivation is then three facts multiplied together. Episodes restarted at $$s$$ deliver
+practice to each state $$x$$ in proportion to the occupancy $$d^{\pi_k}_s(x)$$, that is what
+incremental means. The terminal objective's sensitivity to the decision at $$x$$ is, by the
+usual performance-difference argument, the final policy's occupancy $$d^{\pi_T}_\rho(x)$$
+times the final advantage of whatever probability the nudge moved, discounted by how much of
+the nudge survives later training. And the nudge itself is what reinforcing your own
+experience produces, each action shifted by the advantage it collected at the frequency it
+was tried, which is where one factor of $$\pi_k$$ and one $$A^{\pi_k}$$ enter, with the
+second $$\pi_k$$ coming from converting a preference shift into a probability shift. Because
+the learner is local, these multiply state by state and nothing crosses, giving
 
 $$
 h_k(s) \;=\; \sum_x d^{\pi_k}_s(x)\; d^{\pi_T}_\rho(x)\; \phi(x)
@@ -90,27 +99,33 @@ ignoring the score entirely. The witnessed gap won that screen by a wide margin,
 equation says why: it is the optimistic stand-in for $$A^{\pi_T}$$, so it sees what every
 on-policy score is blind to, improvement the current policy has not yet made routine.
 
-## measured, at two horizons
+## measured, where everything is checkable
 
-On Craftax, with a recurrent PPO at sixteen thousand parallel environments, the equation
-makes a two-sided prediction and both sides came in.
+On grid worlds every quantity in the equation can be computed exactly by dynamic
+programming, which turns the claims from arguments into checks. Three of them, in
+increasing order of consequence.
 
-At one billion steps, nothing. Ten seeds of the no-restart baseline against ten-ish of the
-restart variants: means within a standard error of each other, every knob and stand-in we
-tried inside the noise band. The equation says why. Cold returns are still climbing
-steeply there, meaning $$A^{\pi_T}$$-shaped improvement is still available in the states
-cold episodes visit for free, so no archived cell can outbid an ordinary reset. Restarts at
-that horizon are a free option that correctly stays unexercised.
+**The identity holds.** Compare the predicted first-order improvement $$\alpha\, h(s)$$
+against the true change in $$J_\rho$$ from actually taking the update, at every state, on
+boards easy and hard: correlation $$1.000000$$ at small step sizes, with the graceful
+quadratic degradation at large ones that a first-order claim owes you. Whatever else is
+wrong with the cuts, the algebra is not.
 
-At five billion steps, the option pays. Same seed, same budget, same code: the no-restart
-baseline reaches 53.9, selection by the witnessed gap alone reaches 57.0, and the full
-product, current practice times an elite-visitation stand-in for the relevance, reaches
-**64.8**. A ten-seed replication of the endpoints is running as this posts, so treat the
-gaps as one seed's word for now. The part I trust already is the shape: the win appears
-exactly when the cold curve flattens, which is when the future factors detach from the
-present ones, and a per-cell self-estimate built from all-present quantities sat at "not
-worth it" through the entire breakaway. The value that restarts collect at scale flows
-through the factors the present cannot see.
+**The factors do their jobs.** Build a board where they have different jobs: a chain of
+bottleneck rooms whose start and goal live in one component, welded to a disconnected annex
+rich in reward that no evaluation episode can ever enter. Improvement is abundant in the
+annex, so a magnitude score spends half its restart budget mastering it. The relevance
+factor is identically zero there, so the product never sends a single restart in. At a
+matched restart budget the greedy rule on the score reaches 95% of optimal return, the
+magnitude score reaches 68%, and standard training from $$\rho$$ learns nothing at all,
+across ten seeds with standard errors below $$10^{-3}$$.
+
+**The schedules emerge.** Nobody told the rule about curricula. On boards where reward
+signal binds, its restarts sweep backward from the goal, a reverse curriculum growing
+toward the start. On boards where coverage binds, they expand outward from the start, a
+growing frontier. Two method families the field designed by hand, produced as the two modes
+of one score, with the environment selecting the mode. That is the strongest kind of
+evidence a formulation can give: it did not need to be told what the practitioners know.
 
 ## boundaries
 
