@@ -112,6 +112,11 @@ boards easy and hard: correlation $$1.000000$$ at small step sizes, with the gra
 quadratic degradation at large ones that a first-order claim owes you. Whatever else is
 wrong with the cuts, the algebra is not.
 
+<figure style="margin: 1.6rem auto; text-align: center;">
+<img src="{{ '/assets/img/restarts/identity.png' | relative_url }}" alt="Predicted first-order improvement against the true change in the objective, at every state." style="width:100%; max-width:520px; height:auto;">
+<figcaption class="caption">Predicted improvement $$\alpha\, h(s)$$ against the measured change in $$J_\rho$$, every state of a board, correlation 1.000000 at small step sizes.</figcaption>
+</figure>
+
 **The factors do their jobs.** Build a board where they have different jobs: a chain of
 bottleneck rooms whose start and goal live in one component, welded to a disconnected annex
 rich in reward that no evaluation episode can ever enter. Improvement is abundant in the
@@ -121,12 +126,39 @@ matched restart budget the greedy rule on the score reaches 95% of optimal retur
 magnitude score reaches 68%, and standard training from $$\rho$$ learns nothing at all,
 across ten seeds with standard errors below $$10^{-3}$$.
 
+<figure style="margin: 1.8rem 0; text-align: center;">
+<div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+  <img src="{{ '/assets/img/restarts/hero_drho.png' | relative_url }}" alt="Occupancy of evaluation runs." style="width:32%; min-width:180px; height:auto;">
+  <img src="{{ '/assets/img/restarts/hero_g.png' | relative_url }}" alt="Improvement available." style="width:32%; min-width:180px; height:auto;">
+  <img src="{{ '/assets/img/restarts/hero_w.png' | relative_url }}" alt="Their product." style="width:32%; min-width:180px; height:auto;">
+</div>
+<figcaption class="caption" style="margin-top:8px;">The factors, one board. Evaluation occupancy is zero in the annex (left), improvement is abundant there (middle), and the product erases it (right).</figcaption>
+</figure>
+
+<figure style="margin: 1.8rem 0; text-align: center;">
+<div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+  <img src="{{ '/assets/img/restarts/hero_ours.png' | relative_url }}" alt="Restarts placed by the score." style="width:40%; min-width:200px; height:auto;">
+  <img src="{{ '/assets/img/restarts/hero_baseline.png' | relative_url }}" alt="Restarts placed by a magnitude score." style="width:40%; min-width:200px; height:auto;">
+</div>
+<figcaption class="caption" style="margin-top:8px;">Where the budget goes. The score threads the chain's doors (left); the magnitude score spends half its restarts mastering the annex evaluation can never enter (right).</figcaption>
+</figure>
+
+<figure style="margin: 1.6rem auto; text-align: center;">
+<img src="{{ '/assets/img/restarts/hero_bars.png' | relative_url }}" alt="Final evaluation return of the three schemes at a matched restart budget." style="width:100%; max-width:520px; height:auto;">
+<figcaption class="caption">Matched restart budget, ten seeds: 95% of optimal return for the score, 68% for the magnitude baseline, nothing for standard training.</figcaption>
+</figure>
+
 **The schedules emerge.** Nobody told the rule about curricula. On boards where reward
 signal binds, its restarts sweep backward from the goal, a reverse curriculum growing
 toward the start. On boards where coverage binds, they expand outward from the start, a
 growing frontier. Two method families the field designed by hand, produced as the two modes
 of one score, with the environment selecting the mode. That is the strongest kind of
 evidence a formulation can give: it did not need to be told what the practitioners know.
+
+<figure style="margin: 1.6rem auto; text-align: center;">
+<img src="{{ '/assets/img/restarts/curriculum.png' | relative_url }}" alt="Restart mass sweeping backward from the goal over training." style="width:100%; max-width:640px; height:auto;">
+<figcaption class="caption">The reverse curriculum nobody asked for: restart mass sweeping backward from the goal as competence grows.</figcaption>
+</figure>
 
 ## boundaries
 
