@@ -111,6 +111,7 @@ against the true change in $$J_\rho$$ from actually taking the update, at every 
 boards easy and hard: correlation $$1.000000$$ at small step sizes, with the graceful
 quadratic degradation at large ones that a first-order claim owes you. Whatever else is
 wrong with the cuts, the algebra is not.
+
 **The factors do their jobs.** Build a board where they have different jobs: a chain of
 bottleneck rooms whose start and goal live in one component, welded to a disconnected annex
 rich in reward that no evaluation episode can ever enter. Improvement is abundant in the
