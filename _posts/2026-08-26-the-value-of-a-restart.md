@@ -1,7 +1,7 @@
 ---
 layout: post
 title: the value of a restart
-date: 2026-08-26 22:00:00 +0200
+date: 2026-08-26 19:30:00 +0200
 description: what a restart is worth, derived as a product of four factors, and why every restart heuristic is a choice of stand-ins for the ones you cannot observe
 tags: reinforcement-learning exploration sample-efficiency
 categories: research
