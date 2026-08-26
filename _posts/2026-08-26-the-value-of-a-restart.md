@@ -111,12 +111,6 @@ against the true change in $$J_\rho$$ from actually taking the update, at every 
 boards easy and hard: correlation $$1.000000$$ at small step sizes, with the graceful
 quadratic degradation at large ones that a first-order claim owes you. Whatever else is
 wrong with the cuts, the algebra is not.
-
-<figure style="margin: 1.6rem auto; text-align: center;">
-<img src="{{ '/assets/img/restarts/identity.png' | relative_url }}" alt="Predicted first-order improvement against the true change in the objective, at every state." style="width:100%; max-width:520px; height:auto;">
-<figcaption class="caption">Predicted improvement $$\alpha\, h(s)$$ against the measured change in $$J_\rho$$, every state of a board, correlation 1.000000 at small step sizes.</figcaption>
-</figure>
-
 **The factors do their jobs.** Build a board where they have different jobs: a chain of
 bottleneck rooms whose start and goal live in one component, welded to a disconnected annex
 rich in reward that no evaluation episode can ever enter. Improvement is abundant in the
@@ -144,7 +138,7 @@ across ten seeds with standard errors below $$10^{-3}$$.
 </figure>
 
 <figure style="margin: 1.6rem auto; text-align: center;">
-<img src="{{ '/assets/img/restarts/hero_bars.png' | relative_url }}" alt="Final evaluation return of the three schemes at a matched restart budget." style="width:100%; max-width:520px; height:auto;">
+<img src="{{ '/assets/img/restarts/hero_bars.svg' | relative_url }}" alt="Final evaluation return of the three schemes at a matched restart budget." style="width:100%; max-width:520px; background:#fff; padding:12px; border-radius:8px; box-sizing:border-box;">
 <figcaption class="caption">Matched restart budget, ten seeds: 95% of optimal return for the score, 68% for the magnitude baseline, nothing for standard training.</figcaption>
 </figure>
 
