@@ -46,10 +46,11 @@ decision at one state moves no other, and incremental, it improves each visited 
 proportion to visitation. A table of per-state policies is the canonical case. The
 derivation is then three facts multiplied together. Episodes restarted at $$s$$ deliver
 practice to each state $$x$$ in proportion to the occupancy $$d^{\pi_k}_s(x)$$, that is what
-incremental means. The terminal objective's sensitivity to the decision at $$x$$ is, by the
-usual performance-difference argument, the final policy's occupancy $$d^{\pi_T}_\rho(x)$$
-times the final advantage of whatever probability the nudge moved, discounted by how much of
-the nudge survives later training. And the nudge itself is what reinforcing your own
+incremental means. The terminal objective's sensitivity to the decision at $$x$$ needs no machinery, it pops
+out of $$J_\rho$$ decomposing over the states its episodes visit: evaluation trajectories
+pass through $$x$$ with weight $$d^{\pi_T}_\rho(x)$$, and a nudge of the decision there is
+worth the final advantage of whatever probability it moved, discounted by how much of the
+nudge survives later training. And the nudge itself is what reinforcing your own
 experience produces, each action shifted by the advantage it collected at the frequency it
 was tried, which is where one factor of $$\pi_k$$ and one $$A^{\pi_k}$$ enter, with the
 second $$\pi_k$$ coming from converting a preference shift into a probability shift. Because
