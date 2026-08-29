@@ -12,7 +12,6 @@ published: true
 .fig-svg svg { width: 100%; height: auto; color: var(--global-text-color); }
 </style>
 
-
 Kinetix generates 2D physics tasks without limit {% cite matthews2025kinetix --file
 references %}, and its offline dataset spends that freedom on breadth: 11.5M distinct
 levels, each solved once by a PPO specialist trained on that level alone, each
@@ -130,7 +129,6 @@ vulnerable to mistuning than an effect is, and this one is not sitting on one.
   </figcaption>
 </figure>
 
-
 The reason is arithmetic rather than anything subtle. The smallest task set is 23,552
 trajectories of 256 steps across about five masked action dimensions, roughly 30M discrete
 labels, against a 4M parameter model. Even the smallest configuration has well under a
@@ -167,13 +165,14 @@ train before you can collect it.
 The same four-fold budget was applied to both levers and rescued only one of them. That is
 the sharpest evidence here that the two are not interchangeable.
 
-| lever | change | effect on held-out return |
-|---|---|---:|
-| task count, 100M transitions | 246x more tasks | 1.5 sigma |
-| task count, 400M transitions | 246x more tasks | 1.1 sigma |
-| teacher, 610k tasks, 0.64 passes | 10x expert training | 0.1 sigma |
-| **teacher, 610k tasks, 2.6 passes** | **10x expert training** | **2.5 sigma** |
-| **teacher, 23k tasks, 17 passes** | **10x expert training** | **3.5 sigma** |
+| lever                               | change                  | effect on held-out return |
+| ----------------------------------- | ----------------------- | ------------------------: |
+| task count, 100M transitions        | 246x more tasks         |                 1.5 sigma |
+| task count, 400M transitions        | 246x more tasks         |                 1.1 sigma |
+| teacher, 610k tasks, 0.64 passes    | 10x expert training     |                 0.1 sigma |
+| **teacher, 610k tasks, 2.6 passes** | **10x expert training** |             **2.5 sigma** |
+| **teacher, 23k tasks, 17 passes**   | **10x expert training** |             **3.5 sigma** |
+
 {: style="margin-left:auto; margin-right:auto; margin-bottom:2rem;"}
 
 For anyone spending a budget on demonstration data in a procedurally generated domain,
@@ -189,10 +188,11 @@ being measured here, so the 23k comparison was run again at half and at double t
 five seeds per cell.
 
 | learning rate | change in held-out return |
-|---|---:|
-| 5.5e-4 | +0.078, 7.0 sigma |
-| 1.1e-3 | +0.032, 3.5 sigma |
-| 2.2e-3 | +0.058, 3.4 sigma |
+| ------------- | ------------------------: |
+| 5.5e-4        |         +0.078, 7.0 sigma |
+| 1.1e-3        |         +0.032, 3.5 sigma |
+| 2.2e-3        |         +0.058, 3.4 sigma |
+
 {: style="margin-left:auto; margin-right:auto; margin-bottom:2rem;"}
 
 The better teacher wins at every rate, and the published number is the smallest of the
@@ -210,10 +210,11 @@ demonstrations. Repeating the 23k comparison at a quarter and at four times the 
 seeds per cell:
 
 | parameters | change in held-out return |
-|---|---:|
-| 1.02M | +0.089, 6.5 sigma |
-| 4.04M | +0.032, 3.5 sigma |
-| 16.07M | did not fit the data |
+| ---------- | ------------------------: |
+| 1.02M      |         +0.089, 6.5 sigma |
+| 4.04M      |         +0.032, 3.5 sigma |
+| 16.07M     |      did not fit the data |
+
 {: style="margin-left:auto; margin-right:auto; margin-bottom:2rem;"}
 
 The effect is real at both sizes that trained, and it is nearly three times larger at the
@@ -246,7 +247,6 @@ extra input, with nothing else changed:
     Three seeds per arm, identical but for one input. The likelihood strongly prefers giving the model the expert's previous action, by 0.342. The policy is worse for it, by 0.098 of held-out return at 4.7 sigma.
   </figcaption>
 </figure>
-
 
 Conditioning on the expert's last action improves the loss by **0.342**, a larger effect
 than anything else measured here, and costs **0.098 of return at 4.7 sigma** over three
