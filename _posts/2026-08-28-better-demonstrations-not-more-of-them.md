@@ -13,7 +13,7 @@ published: true
 </style>
 
 Kinetix generates 2D physics tasks without limit {% cite matthews2025kinetix --file
-references %}, and its offline dataset spends that freedom on breadth: 11.5M distinct
+references %}, and its offline dataset spends that freedom on breadth, 11.5M distinct
 levels, each solved once by a PPO specialist trained on that level alone, each
 contributing exactly one 256-step trajectory. There is no second demonstration of
 anything. So a data budget here has two axes and only two, and they trade against each
@@ -60,26 +60,24 @@ blue one without touching red.
 The dataset makes the trade explicit in its own naming. `{policy_steps}/{size}` gives
 `1M/s` with 5.98M tasks from experts trained a million steps each, and `10M/s` with 637k
 tasks from experts trained ten million. Nine times as many tasks, or a teacher trained ten
-times as long. The obvious guess, given that the whole appeal of procedural generation is
-unlimited task variety, is that the tasks win.
+times as long. The whole appeal of procedural generation is unlimited task variety, so the
+tasks should win.
 
 They do not. Two hundred and forty-six times the tasks is worth nothing measurable, at
-either training budget tested. Ten times the teacher's training is worth **2 to 3 points of
-success rate**, at every task count tested: 47% to 50% of held-out levels solved at one
-task count, 49% to 52% at the other.
+either training budget I tested. Ten times the teacher's training is worth two to three
+points of success rate at every task count, 47% to 50% of held-out levels solved at one
+count and 49% to 52% at the other.
 
-Spreading the same budget over more tasks does not destroy that benefit, but it does delay
-it. At 610k tasks a run has to get through the data before the better teacher shows up at
-all, and a budget that looked sufficient at 23k tasks is not.
-
-All of it, and the evidence, is in the figure below.
+Spreading the same budget over more tasks does not destroy that benefit, it delays it. At
+610k tasks a run has to get through the data before the better teacher shows up at all, and
+a budget that looked sufficient at 23k tasks is not.
 
 ## how the comparison is made
 
-Every number below comes from runs that differ in one factor and are otherwise
-identical: the same recurrent policy over an entity transformer, the same optimiser and
-cosine schedule, and the same training budget within any one comparison. Seed counts run
-from three to twenty per arm and are given alongside each result.
+Every number below comes from runs that differ in one factor and are otherwise identical,
+the same recurrent policy over an entity transformer, the same optimiser and cosine
+schedule, and the same training budget within any one comparison. Seed counts run from
+three to twenty per arm and are given alongside each result.
 
 Evaluation is on 512 held-out levels drawn from reserved shards, which the policy never
 trains on. An untrained network solves 28% of that set, and the ceiling is 100% by construction,
@@ -97,29 +95,26 @@ Fix everything, vary only how many distinct tasks the model may draw from. At a 
 budget of 100M transitions, the low arm cycles its 23,552 tasks 16.6 times and the high arm
 sees 6.7% of its 5,796,864 tasks once.
 
-The top row of the figure is the result. A **246x** change in task count moves held-out
-return by **-0.020, which is 1.5 sigma** over six seeds per arm. Held-out loss agrees and
-is flatter still, 0.8700 against 0.8703, 0.4 sigma. Nothing here reaches significance, and
-the sign is negative throughout, so more tasks is if anything mildly worse.
+A 246x change in task count moves held-out return by -0.020, which is 1.5 sigma over six
+seeds per arm. Held-out loss agrees and is flatter still, 0.8700 against 0.8703, 0.4 sigma.
+Nothing reaches significance, and the sign is negative throughout, so more tasks is if
+anything mildly worse.
 
-The obvious objection is that 100M transitions is not enough training for a difference to
-appear. It is a fair objection, and it is exactly what happens to the teacher comparison
-further down. So the same contrast was run again at **four times the compute**, where the
+The objection that writes itself is that 100M transitions is not enough training for a
+difference to appear. It is a good objection, and it is exactly what happens to the teacher
+comparison further down, so I ran the same contrast at four times the compute, where the
 low arm makes 66 passes over its tasks while the high arm still sees only 27% of its own
 once.
 
-That is the second row. Held-out return moves by **-0.017, which is 1.1 sigma**, and
-success rate by 0.8 sigma. Both arms gained substantially from the larger budget, 0.529 to
-0.588 and 0.510 to 0.571, so the extra compute did move the numbers. It just did not move
-them apart.
-
-The effect is also about the same size at both budgets, -0.020 against -0.017. The extra
-compute bought a second look at the same small negative number rather than revealing a new
-one.
+Return moves by -0.017, which is 1.1 sigma, and success rate by 0.8 sigma. Both arms gained
+substantially from the larger budget, 0.529 to 0.588 and 0.510 to 0.571, so the extra
+compute did move the numbers. It just did not move them apart. The effect is about the same
+size at both budgets, -0.020 against -0.017, so four times the compute bought a second look
+at the same small negative number rather than revealing a new one.
 
 Nor is it an artefact of the learning rate. Run at half and at double the rate used
-throughout, five seeds per cell, the comparison stays flat and stays negative: -0.006 at
-0.6 sigma and -0.016 at 1.0 sigma, against -0.020 at the tuned rate. A null is more
+throughout, five seeds per cell, the comparison stays flat and stays negative, -0.006 at
+0.6 sigma and -0.016 at 1.0 sigma against -0.020 at the tuned rate. A null is more
 vulnerable to mistuning than an effect is, and this one is not sitting on one.
 
 <figure class="fig-svg" style="margin: 2rem 0;">
@@ -141,29 +136,26 @@ the one drawing fresh tasks continuously.
 Now hold the task count fixed and change who produced the demonstrations. `1M/s` at 23,552
 tasks against `10M/s` at 22,464, a 5% match, same compute, same evaluation levels.
 
-That is the fourth row. Return improves by **+0.032, at 3.5 sigma**, over ten seeds per
-arm, and success rate goes from **46.9% to 49.7%** at 3.4 sigma. Held-out loss moves much
-further, 0.870 to 0.722, because data from a better-trained expert is simply more
-predictable.
+Return improves by +0.032 at 3.5 sigma over ten seeds per arm, and success rate goes from
+46.9% to 49.7% at 3.4 sigma. Held-out loss moves much further, 0.870 to 0.722, because data
+from a better-trained expert is simply more predictable.
 
-Repeating the comparison at 26x more tasks, 609,024 against 616,576, is the third row,
-and the effect on return is **gone**: -0.001, which is 0.07 sigma, about as flat as a null
-gets. The loss still improves there, by 0.050 at 5.0 sigma, so the data is still easier to
-fit. It just has not bought a better policy yet.
+Repeat the comparison at 26x more tasks, 609,024 against 616,576, and the effect on return
+is gone, -0.001 at 0.07 sigma, about as flat as a null gets. The loss still improves there,
+by 0.050 at 5.0 sigma, so the data is still easier to fit. It has not bought a better policy
+yet.
 
-That last word is the important one. At 610k tasks, 100M transitions is 0.64 passes over the
+Yet is the word doing the work. At 610k tasks, 100M transitions is 0.64 passes over the
 data, and every arm was still climbing when the budget ran out. Give the same comparison
-**four times the compute**, 2.6 passes instead of 0.64, and it is the bottom row: return
-improves by **+0.023 at 2.5 sigma** over twenty seeds per arm, and success rate goes from
-**49.3% to 51.6%** at 3.0 sigma. Both arms also gain a lot in absolute terms, since both
-were still learning when the shorter budget cut them off.
+four times the compute, 2.6 passes instead of 0.64, and return improves by +0.023 at 2.5
+sigma over twenty seeds per arm, with success rate going from 49.3% to 51.6% at 3.0 sigma.
+Both arms gain a lot in absolute terms too, since both were still learning when the shorter
+budget cut them off.
 
-So quality is not conditional on repetition. It is worth much the same at both, +0.032 of
-return at 23k tasks and +0.023 at 610k. What changes with task count is how long you must
-train before you can collect it.
-
-The same four-fold budget was applied to both levers and rescued only one of them. That is
-the sharpest evidence here that the two are not interchangeable.
+So quality is not conditional on repetition. It is worth much the same at both counts,
++0.032 of return at 23k tasks and +0.023 at 610k, and what changes is how long you must
+train before you can collect it. The same four-fold budget went to both levers and rescued
+only one of them, which is the sharpest evidence here that the two are not interchangeable.
 
 | lever                               | change                  | effect on held-out return |
 | ----------------------------------- | ----------------------- | ------------------------: |
@@ -175,10 +167,10 @@ the sharpest evidence here that the two are not interchangeable.
 
 {: style="margin-left:auto; margin-right:auto; margin-bottom:2rem;"}
 
-For anyone spending a budget on demonstration data in a procedurally generated domain,
-that is the actionable pair. Generating more tasks is cheap and appealing and did not help
-at either budget we measured. Training each specialist longer did, everywhere we looked. The
-only thing task count changed was the training budget needed to see it.
+If you are spending a budget on demonstration data in a procedurally generated domain,
+that is the pair worth knowing. Generating more tasks is cheap and appealing and did not
+help at either budget I measured. Training each specialist longer did, everywhere I looked.
+The only thing task count changed was the training budget needed to see it.
 
 ## the learning rate is not doing the work
 
@@ -248,11 +240,10 @@ extra input, with nothing else changed:
   </figcaption>
 </figure>
 
-Conditioning on the expert's last action improves the loss by **0.342**, a larger effect
-than anything else measured here, and costs **0.098 of return at 4.7 sigma** over three
-seeds per arm. The likelihood is mostly scoring action persistence, which is available
-while training on recorded trajectories and gone at rollout, when the previous action is
-the policy's own.
+Conditioning on the expert's last action improves the loss by 0.342, a larger effect than
+anything else measured here, and costs 0.098 of return at 4.7 sigma over three seeds per
+arm. The likelihood is mostly scoring action persistence, which is available while training
+on recorded trajectories and gone at rollout, when the previous action is the policy's own.
 
 Even without that input the two quantities disagree about timing. At 610k tasks and 0.64
 passes the strong-expert data already holds a clear likelihood advantage, 0.821 against
