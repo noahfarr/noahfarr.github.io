@@ -2,7 +2,7 @@
 layout: post
 title: the value of a restart
 date: 2026-08-26 19:30:00 +0200
-description: what a restart is worth, derived as a product of three factors plus a term for what an episode opens up, and why every restart heuristic is a choice of stand-ins for the ones you cannot observe
+description: what a restart is worth, derived as a product of three factors plus a term for what an episode opens up, and why every restart heuristic is a choice of substitutions for the ones you cannot observe
 tags: reinforcement-learning exploration sample-efficiency
 categories: research
 featured: true
@@ -30,7 +30,7 @@ The exact solution of this problem is a dynamic program over training states, ho
 well defined, so every practical rule is an approximation of it. The useful move is to make
 the approximations named and separable rather than implicit.
 
-## two cuts
+## two approximations
 
 **Freeze the feedback.** Practice now changes the policy, the changed policy collects
 different data later, and later training learns from that data. Discard the second channel:
@@ -41,7 +41,7 @@ order as the kept one. What it discards has a name, the stepping stone, practice
 is the practice it unlocks, which is the thing Go-Explore's archive growth engineers by hand
 {% cite ecoffet2021goexplore --file references %}. Not all of it goes. An episode also adds
 the states it visits to the archive, and that move is order one in the step size, so this
-cut keeps it. It comes back below as a second term, and it is the term Go-Explore is.
+approximation keeps it. It comes back below as a second term, and it is the term Go-Explore is.
 
 **Go to first order, for a local learner.** Assume the learner is local, improving its
 decision at one state moves no other, and incremental, it improves each visited state in
@@ -112,7 +112,7 @@ uniform inner score, so the prior has to actually rank, which is why novelty is 
 work in the methods that use it.
 
 Then the reframing: a rule that drops the teaching term and restarts by $$\xi_k$$ alone,
-with novelty ranking the unseen, is Go-Explore. The stepping stone the first cut seemed to
+with novelty ranking the unseen, is Go-Explore. The stepping stone the first approximation seemed to
 throw away is not gone under archive access, it is this term, and the method that engineers
 it by hand is the special case that keeps only it.
 
@@ -121,18 +121,18 @@ state too, and an episode updates them, so there is a value to what an episode t
 estimator. It is identically zero under oracle scoring and at the horizon, and to first
 order it is the expected improvement of the next selection from tightening the estimates,
 which is the expected improvement of Bayesian optimization wearing different clothes. Its
-cheapest stand-in is optimism: a state whose score rests on no success yet is scored at the
+cheapest substitution is optimism: a state whose score rests on no success yet is scored at the
 archive's best until it has been tried.
 
-## every heuristic is a choice of stand-ins
+## every heuristic is a choice of substitutions
 
 Two quantities in the score live at the end of training while the run stands at $$k$$, the
 relevance and the final advantage, as does the inner score of the opening term. Each needs
-a stand-in, and this is where the entire heuristic literature lives.
+a substitution, and this is where the entire heuristic literature lives.
 
-| factor             | cheapest stand-in                         | optimistic stand-in                                    |
+| factor             | cheapest substitution                         | optimistic substitution                                    |
 | :----------------- | :---------------------------------------- | :----------------------------------------------------- |
-| $$d^{\pi_k}_s$$    | sampled by restarting, no stand-in needed | ---                                                     |
+| $$d^{\pi_k}_s$$    | sampled by restarting, no substitution needed | ---                                                     |
 | $$d^{\pi_T}_\rho$$ | uniform over the archive                  | current occupancy $$d^{\pi_k}_\rho$$, elite visitation  |
 | $$A^{\pi_T}$$      | current advantage, giving $$A^2$$         | the witnessed gap $$\max(0, G^{\max} - V^{\pi})$$       |
 | $$\xi_k$$          | progress along the objective              | witnessed gap of the discovering trail                  |
@@ -140,6 +140,11 @@ a stand-in, and this is where the entire heuristic literature lives.
 
 The columns are cost and optimism, not a recommendation. What the runs actually use is the
 optimistic column for relevance and the cheap one for the estimation term.
+
+<figure style="margin: 1.8rem 0; text-align: center;">
+<img src="{{ '/assets/img/restarts/oracle_vs_approximation_warren.png' | relative_url }}" alt="Each factor computed exactly, beside the same factor as a run can estimate it." style="width:100%; max-width:760px; height:auto;">
+<figcaption class="caption" style="margin-top:8px;">Every factor of the score on a board of six chambers, computed exactly on the left and estimated from the run's own statistics on the right. The footprint needs no substitution and matches. Relevance is the hard one: the exact column knows the route the finished policy will walk, the estimated column only knows where the current one has been. The opening term is the unsolved one, still firing on the right where the exact term has already gone to zero.</figcaption>
+</figure>
 
 The footprint is the one factor that needs nothing, since every episode restarted at $$s$$
 samples it without bias.
@@ -175,7 +180,7 @@ factors zeroes states that are off the optimal path but still teaching. Gradient
 and temporal-difference scores are the practice factor, alone, no relevance, and in a
 preregistered screen on a diagnostic environment they measured indistinguishable from
 ignoring the score entirely. The witnessed gap won that screen by a wide margin, and the
-equation says why: it is the optimistic stand-in for $$A^{\pi_T}$$, so it sees what every
+equation says why: it is the optimistic substitution for $$A^{\pi_T}$$, so it sees what every
 on-policy score is blind to, improvement the current policy has not yet made routine.
 
 ## measured, where everything is checkable
@@ -188,7 +193,7 @@ increasing order of consequence.
 against the true change in $$J_\rho$$ from actually taking the update, at every state, on
 boards easy and hard: correlation $$1.000000$$ at small step sizes, with the graceful
 quadratic degradation at large ones that a first-order claim owes you. Whatever else is
-wrong with the cuts, the algebra is not.
+wrong with the approximations, the algebra is not.
 
 **The factors do their jobs.** Build a board where they have different jobs: a chain of
 bottleneck rooms whose start and goal live in one component, welded to a disconnected annex
@@ -199,21 +204,22 @@ matched restart budget the greedy rule on the score reaches 95% of optimal retur
 magnitude score reaches 68%, and standard training from $$\rho$$ learns nothing at all,
 across ten seeds with standard errors below $$10^{-3}$$.
 
+**Every term is separately visible.** Because the boards are small enough to solve exactly,
+each factor can be computed rather than argued about, and put beside the estimate a run
+would actually form. Two boards make different points. A maze, where the goal sits far
+enough from the start that the opening term does real work for most of training. And a
+corridor of six chambers with the episode capped at the shortest path, so a policy that
+never restarts provably never reaches the goal at all, which makes restarts necessary
+rather than merely helpful.
+
 <figure style="margin: 1.8rem 0; text-align: center;">
-<div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
-  <img src="{{ '/assets/img/restarts/hero_drho.png' | relative_url }}" alt="Occupancy of evaluation runs." style="width:32%; min-width:180px; height:auto;">
-  <img src="{{ '/assets/img/restarts/hero_g.png' | relative_url }}" alt="Improvement available." style="width:32%; min-width:180px; height:auto;">
-  <img src="{{ '/assets/img/restarts/hero_w.png' | relative_url }}" alt="Their product." style="width:32%; min-width:180px; height:auto;">
-</div>
-<figcaption class="caption" style="margin-top:8px;">The factors, one board. Evaluation occupancy is zero in the annex (left), improvement is abundant there (middle), and the product erases it (right).</figcaption>
+<video src="{{ '/assets/img/restarts/oracle_vs_approximation_maze.mp4' | relative_url }}" autoplay loop muted playsinline style="width:100%; max-width:520px; height:auto; border-radius:8px;"></video>
+<figcaption class="caption" style="margin-top:8px;">Every factor over a full run on a maze, exact on the left and estimated on the right. Watch the opening term: on the left it carries most of the score while the archive is still filling, then drops to exactly zero once the archive holds a state as good as any the policy can reach. On the right it keeps firing regardless, which is the substitution nobody has yet got right.</figcaption>
 </figure>
 
 <figure style="margin: 1.8rem 0; text-align: center;">
-<div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
-  <img src="{{ '/assets/img/restarts/hero_ours.png' | relative_url }}" alt="Restarts placed by the score." style="width:40%; min-width:200px; height:auto;">
-  <img src="{{ '/assets/img/restarts/hero_baseline.png' | relative_url }}" alt="Restarts placed by a magnitude score." style="width:40%; min-width:200px; height:auto;">
-</div>
-<figcaption class="caption" style="margin-top:8px;">Where the budget goes. The score threads the chain's doors (left); the magnitude score spends half its restarts mastering the annex evaluation can never enter (right).</figcaption>
+<video src="{{ '/assets/img/restarts/oracle_vs_approximation_warren.mp4' | relative_url }}" autoplay loop muted playsinline style="width:100%; max-width:760px; height:auto; border-radius:8px;"></video>
+<figcaption class="caption" style="margin-top:8px;">The same run on six chambers with the episode capped at the shortest path, so a policy that never restarts provably never reaches the goal. Relevance concentrates on the route through the doors rather than spreading over the rooms, which is the factor a magnitude score does not have.</figcaption>
 </figure>
 **The schedules emerge.** Nobody told the rule about curricula. On boards where reward
 signal binds, its restarts sweep backward from the goal, a reverse curriculum growing
@@ -247,11 +253,11 @@ until it reports.
 
 ## boundaries
 
-The frozen-feedback cut still discards the stepping stones that work through the learner,
+The frozen-feedback approximation still discards the stepping stones that work through the learner,
 so nothing here prices practice whose value is the practice it unlocks by teaching, and
 environments that are all stepping-stone, DeepSea-style needles where no witnessed return
 precedes discovery, should and do show nothing
-{% cite tavakoli2018restart --file references %}. What the cut does keep is the archive
+{% cite tavakoli2018restart --file references %}. What the approximation does keep is the archive
 channel, which is the opening term above, so the stepping stone survives in the one form
 the simulator makes cheap.
 
@@ -271,7 +277,7 @@ The summary has not changed since the first attempt, it has only become precise.
 training episode begins is a free variable, and the field has been setting it with
 hand-designed schedules. The restart distribution is not a schedule to design. It is a
 quantity to estimate, three factors and a term for what an episode opens up, and the
-stand-ins are where the remaining research is.
+substitutions are where the remaining research is.
 
 ## References
 
