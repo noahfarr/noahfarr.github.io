@@ -127,14 +127,6 @@ batches.
 <figcaption class="caption">Masked MuJoCo. Position-only observability on the top row, velocity-only on the bottom, across four tasks. The streaming Stream AC(&lambda;)-RTU recovers much of batched PPO's performance without any replay or batched updates.</figcaption>
 </figure>
 
-## Why I like this result
-
-Streaming RL is appealing because it is honest about the constraints a real, online,
-embodied learner faces: one stream of experience, no storing the past, update as you go. The
-piece that was missing was memory. This closes that gap. An agent can now learn long-range
-temporal dependencies in a single stream, without replay, by carrying an exact gradient
-forward in time instead of trying to look backward through a past it never kept.
-
 ## Acknowledgements
 
 Thanks to my coauthors Aryaman Reddi, Carlo D'Eramo, and Jan Peters. The paper and code are
