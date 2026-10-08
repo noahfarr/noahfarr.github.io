@@ -19,4 +19,4 @@ I am a second-year Master's student in Artificial Intelligence and Machine Learn
 
 ## Research Interests
 
-My research interests center on a central question: how do you train a single reinforcement learning agent that can pursue any goal in a complex, open-ended environment, without hand-designed rewards, curricula, or task-specific engineering?
+My research interests center on a central question: how do you train a reinforcement learning agent that can pursue any goal in a complex, open-ended environment, without hand-designed rewards, curricula, or task-specific engineering?
