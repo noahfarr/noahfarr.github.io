@@ -1,6 +1,6 @@
 ---
 layout: post
-title: not every token is an action
+title: Language as policy
 date: 2026-07-20 10:00:00 +0200
 description: an argument for treating LLM RL as a POMDP rather than an MDP, and what falls out for free once you do
 tags: reinforcement-learning llms partial-observability agents
@@ -9,24 +9,24 @@ featured: true
 ---
 
 Reinforcement learning on language models is almost always written down as a Markov
-decision process over tokens. That framing is quietly broken, and loss masking is the
-tell. Every serious agentic-RL codebase masks tool outputs and other-turn tokens out of
+decision process over tokens. Loss masking exposes a limitation of that framing.
+Agentic-RL codebases mask tool outputs and other-turn tokens out of
 the loss, and nearly everyone files it under stabilisation tricks, somewhere next to
-gradient clipping and reward normalisation. It is not a trick. It is a theorem, and you
-are rediscovering it by accident, because the environment was never a Markov decision
-process. It was partially observable all along.
+gradient clipping and reward normalisation. Separating actions from observations
+explains why these tokens should be excluded from the policy loss. A POMDP makes
+that distinction explicit.
 
 The distinction the token-level MDP throws away is the only one that matters here, which
 tokens the policy chose and which tokens the world handed it. Output tokens are actions.
 Prompts and tool results are observations. A POMDP is precisely the formalism that keeps
 those two straight, and once you write LLM RL down as one, loss masking stops being
-folklore and becomes forced, along with a short family of its siblings. The path there is
-a ladder of three formalisms. RLHF starts as a bandit, gets refined into a token-level
-MDP, and that frame cracks in two places, with the POMDP waiting underneath. At the end I
+folklore and follows from that distinction, as do the scope of the KL penalty and
+importance ratios. I'll start with the bandit formulation of RLHF, then examine what
+the token-level MDP captures and where it falls short. At the end I
 put the claim to a practical test. If it is right, an LLM should drop into a completely
 standard RL stack with no adaptations at all, and it does.
 
-## Where RLHF starts: a bandit
+## RLHF begins as a bandit
 
 The simplest honest description of single-turn RLHF is a contextual bandit. A prompt
 comes in, the whole response goes out as one action from an enormous arm space, and one
@@ -41,7 +41,7 @@ response treated as a single arm {% cite rafailov2023direct --file references %}
 is fine, as far as it goes. But it flattens everything that happens inside the response.
 One reward covers every token equally, whether that token mattered or not.
 
-## One step finer: a token-level MDP
+## The token-level MDP
 
 The standard refinement is to break the arm into a sequence. The state is the prefix,
 the action is the next token, and the transition is concatenation:
@@ -56,7 +56,7 @@ be a Q-function {% cite rafailov2024from --file references %}. Note that it is M
 by construction. The state _is_ the entire history, so there is nothing hidden for the
 policy to miss.
 
-## The catch: two cracks
+## The limits of the token-level MDP
 
 The token MDP breaks in two distinct ways, and they are worth separating, because only
 one of them can be fixed with a better algorithm.
@@ -84,10 +84,10 @@ one of them can be fixed with a better algorithm.
    $$s_{t+1} = s_t \oplus a_t \oplus o_{t+1}$$, with $$o_{t+1}$$ arriving from outside,
    and the token MDP simply has no name for $$o_{t+1}$$.
 
-The first crack you can patch inside the frame, by training a critic. The second is a
-hole in the formalism itself, and it is the door to the POMDP.
+A critic can address token-level credit assignment. Accounting for observations
+requires changing how we describe the interaction.
 
-## The idea: it was a POMDP all along
+## Language as policy
 
 A POMDP makes the missing distinction primitive. There is a true state the agent never
 sees directly, the contents of files it has not opened, the bug behind a failing test,
@@ -140,11 +140,12 @@ backed into the right formalism by brute-force concatenation.
 <figcaption class="caption" style="margin-top:8px;">One rollout of a tool-using agent. Blue spans are actions the policy sampled and should get gradient; grey spans are observations injected from outside and should not; reward lands once, at the end, and goes to the learner rather than back into the context.</figcaption>
 </figure>
 
-## What falls out for free
+## What follows from the policy view
 
 Once observation and action are different objects, several things that usually get
 presented as engineering folklore become consequences you can read off the formalism.
-They are all the same one-line fact, worn three ways. The quantity $$\pi_\theta(o \mid h)$$
+Loss masking, KL regularisation, and importance ratios all depend on which tokens the
+policy actually sampled. The quantity $$\pi_\theta(o \mid h)$$
 is not a thing, because the policy has no distribution over tokens it did not emit.
 
 1. **Loss masking.** There is no policy gradient to compute on a tool-output token,
@@ -170,7 +171,7 @@ rollouts that differ in what happened ten tool calls ago but share the same last
 output are different histories, and a value function that only reads the last turn will
 alias them, for exactly the reason a POMDP says it will.
 
-## Dropping an LLM into a standard RL stack
+## Putting the policy view into practice
 
 Here is the practical test. I keep a JAX RL codebase around with the usual suspects,
 DQN, PPO, SAC, GRPO, plus recurrent variants of each for partially observable
@@ -214,10 +215,9 @@ statistic of the history. The critic rides on the same torso, so the value estim
 conditions on the full history for free, which is exactly what the aliasing argument
 above demanded. And swap `RecurrentPPO` for `RecurrentGRPO` and nothing else changes.
 
-Notice also what happened to the masking question. It dissolved. This implementation is
-POMDP-native, so observations arrive on their own input channel and the action sequence
-contains only actions. There is nothing to mask out of the loss, because observations
-were never mixed into the action stream in the first place. Loss masking is the
+Because observations and actions are stored separately, observations never enter the
+policy loss. Observations arrive on their own input channel, and the action sequence
+contains only actions. Loss masking is the
 correction you need when $$h_t$$ is stored as one flat token buffer. Write the POMDP
 down structurally and the bug it corrects cannot even be expressed.
 
@@ -257,16 +257,6 @@ down structurally and the bug it corrects cannot even be expressed.
 <figcaption class="caption" style="margin-top:8px;">The same rollout, the way a POMDP-native implementation stores it: observation, action, and reward as separate, step-aligned channels, which is literally the network's input signature. The empty cells are steps where nothing came back from the environment. The loss only ever touches the action lane, not because anything is masked, but because there is nothing else it could touch.</figcaption>
 </figure>
 
-And because the algorithm is torso-agnostic, you can watch this happen. Below, the exact
-same PPO update, exported to StableHLO and compiled to WebAssembly by
-[whlo](https://github.com/noahfarr/whlo), trains a small policy on Wordle right here in
-your browser. The three buttons swap the torso between a GRU, a MinGRU, and a
-self-attention stack, and nothing else changes. Pick one and hit train.
-
-<div id="pomdp-trainer"></div>
-<noscript>This demo needs JavaScript and WebAssembly.</noscript>
-<script type="module" src="{{ '/assets/js/pomdp/trainer.mjs' | relative_url }}"></script>
-
 ## Why I like this framing
 
 Nothing here changes what a careful implementation already does. Good agentic RL
@@ -278,7 +268,7 @@ also buys the other direction: the moment an LLM is just a sequence model behind
 interface, everything the RL community has built for partially observable problems
 applies to it verbatim, no bespoke "LLM RL" framework required. If
 you think a piece of this is wrong, or you have a setting where the split does not hold
-cleanly, I would genuinely like to hear about it, so [get in touch](/).
+cleanly, I would like to hear about it, so [get in touch](/).
 
 ## References
 
