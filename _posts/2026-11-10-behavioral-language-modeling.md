@@ -253,139 +253,27 @@ tests. Imitation increases the likelihood of demonstrated actions. A policy
 gradient update uses returns or advantages to change the likelihood of actions
 taken during rollouts.
 
-Both methods train $$\pi_\theta(a_t\mid h_t)$$. BC fits the demonstrator's choices.
-RL changes the policy according to the rewards its choices earn.
+Both methods train $$\pi_\theta(a_t\mid h_t)$$. The observations remain inputs to
+that policy. In a fixed environment, policy ratios compare the probabilities of
+the actions, since the environment terms cancel. A KL penalty likewise compares
+the policy's choices.
 
-The same reasoning applies to policy ratios. For two policies with the same
-observation interface in a fixed environment, the environment terms cancel
+## Implications
 
-$$
-\frac{P^{\pi_\theta}(\tau)}{P^{\pi_{\mathrm{old}}}(\tau)}
-=\prod_t
-\frac{\pi_\theta(a_t\mid h_t)}{\pi_{\mathrm{old}}(a_t\mid h_t)}.
-$$
+DAgger and on-policy distillation bring supervision onto histories the student
+visits {% cite ross2011dagger agarwal2024gkd --file references %}. The teacher's
+advice also needs to account for what the student can observe. A teacher that has
+seen the source file may write a patch immediately, while the student should read
+the file first. Copying that answer can teach it to skip gathering evidence.
+This information mismatch is studied in asymmetric imitation learning
+{% cite warrington2021a2d --file references %}.
 
-This holds where the denominator is positive. Only action probabilities remain.
-A KL penalty between policies also compares their choices. Adding a loss on the
-model's predictions of tool outputs would be a separate objective.
-
-As in BC, observations affect the update through the policy's use of them as
-inputs.
-
-With one token per step, discounting also happens per token unless we choose
-otherwise. That can make a longer response worth less even if it reaches the
-same result. The reward timing and discount should match the task we want to train.
-
-## Learning on the student's histories
-
-Once the coding assistant makes its own decisions, it may open different files,
-write a different patch, or get a test failure absent from its demonstrations.
-The history reaching the policy has changed. DAgger addresses this by asking an
-expert for supervision on histories the learner visits {% cite ross2011dagger --file references %}.
-
-In on-policy distillation, the student generates text and the teacher supplies
-targets on those prefixes. Generalized Knowledge Distillation uses
-student-generated sequences this way {% cite agarwal2024gkd --file references %}.
-The objective is still imitation, now on histories the student actually visits.
-
-This can teach the student how to recover from its own mistakes. But the teacher
-may still give advice based on evidence the student has never seen.
-
-### When the student should look first
-
-Suppose the teacher has already seen the relevant source file. It can write a
-patch immediately. The student has only seen the failing test, so it should read
-the file first. Copying the teacher's next token may teach it to skip that read.
-
-We can isolate this problem with a smaller task. An episode starts with a fresh
-random bit. There are three possible action
-tokens, `ANSWER_0`, `ANSWER_1`, and `INSPECT`. The teacher sees the bit and emits the
-correct answer token. The student cannot see it, but can emit `INSPECT` to reveal
-it at a cost of $$0.1$$. A correct answer earns one point. Returns are undiscounted.
-
-The teacher always answers immediately. If the student fits those initial answers,
-it learns to guess. Inspecting first would earn more reward, but the teacher never
-needs to inspect.
-
-Let the student inspect with probability $$q$$ and answer correctly afterward.
-Otherwise, it guesses uniformly. Its expected return and initial imitation loss are
-
-$$
-J(q)=0.5+0.4q,
-\qquad L_0(q)=\log 2-\log(1-q).
-$$
-
-| Inspection probability | Expected return | Initial imitation loss |
-| ---------------------- | --------------- | ---------------------- |
-| $$q=0$$                | $$0.5$$         | $$\log 2$$             |
-| $$q=0.5$$              | $$0.7$$         | $$2\log 2$$            |
-| $$q=1$$                | $$0.9$$         | $$\infty$$             |
-
-The better policy has a worse initial imitation loss. Querying the same teacher
-on more student rollouts does not change its initial answer.
-
-This is a small example of the asymmetric imitation problem studied by adaptive
-asymmetric DAgger, or A2D {% cite warrington2021a2d --file references %}. The expert's
-extra information lets it choose actions that may be poor choices for its student.
-We could adapt the teacher, ask it to act with the student's information, or use
-reward to learn when inspection is worthwhile.
-
-For the coding assistant, this means teaching it when to open the file as well as
-how to write the patch afterward. More examples on student histories will not
-supply that behavior if the teacher always answers from evidence the student lacks.
-
-A teacher's greater knowledge can help the student learn from the same input.
-The random bit isolates a different problem, since no amount of prior training
-can reveal its value in a fresh episode.
-
-## What should memory keep?
-
-Now suppose the assistant does open the file. It reads the relevant code, runs a
-few more commands, and compresses the conversation. If the summary drops that
-code, the policy loses information it had already gathered.
-
-Consider an agent that receives a fresh random code. Its next action must be the
-single token `WAIT`. It then compresses its history. Later it is asked to
-reproduce the code.
-
-Keeping the code and forgetting it both allow perfect prediction of `WAIT`. That
-step tells us nothing about whether the memory will support the later answer.
-
-If the code has $$k$$ independent uniform bits, an agent that remembers nothing
-can guess it with probability $$2^{-k}$$. If all its memory has at most $$2^b$$
-possible states, its chance of reproducing the code is at most
-
-$$
-\Pr(\hat B=B)\le\min\{1,2^{b-k}\}.
-$$
-
-For integer $$0\le b\le k$$, keeping the first $$b$$ bits reaches this bound. For an
-eight-bit code, keeping zero, four, or eight bits gives success rates of
-$$1/256$$, $$1/16$$, and $$1$$. Any accessible cache, transcript, or note counts as
-memory here. The bound concerns the number of possible memory states, rather than
-a context length measured in tokens.
-
-A summary can preserve the next action while losing information needed later.
-For the coding assistant, the missing source code might not affect the next test
-command. It can still be needed when the assistant writes the patch. Testing only
-the next token would miss that loss.
-
-I would evaluate a summary by whether the agent can still finish the task after
-repeated memory updates, accounting for storage and retrieval costs. Continuous
-Context Management already studies memory updates in language agents
-{% cite hoy2026ccm --file references %}.
-
-## Learning the policy
-
-I started with a question about pretraining targets. Viewing the model as a
-policy made the comparison precise enough to run, even though the results so
-far are mixed and limited to predicting recorded actions.
-
-For a coding assistant, I ultimately care whether it opens the right file and
-writes a patch that works. A low imitation loss can coexist with skipping the
-file read, copying an answer based on evidence it lacks, or forgetting the code
-before writing the patch. I want to test behavioral language modeling against
-those decisions as well.
+Context compression changes the policy's available information too. A summary
+could drop the source code without changing the next command, then leave the
+assistant unable to write the patch later. Work such as Continuous Context
+Management studies memory updates in language agents
+{% cite hoy2026ccm --file references %}. I would judge those updates by whether
+the agent can still finish the task after repeated compression.
 
 ## References
 
