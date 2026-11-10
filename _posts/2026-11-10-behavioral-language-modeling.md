@@ -1,10 +1,12 @@
 ---
 layout: post
 title: Behavioral Language Modeling
+date: 2026-11-10 00:00:00 +0100
 description: starting from the agent-learning problem connects language-model pretraining, imitation, reinforcement learning, and memory
 permalink: /blog/2026/behavioral-language-modeling/
 tags: reinforcement-learning llms imitation-learning agents memory
 categories: research
+featured: true
 toc:
   sidebar: left
 ---
