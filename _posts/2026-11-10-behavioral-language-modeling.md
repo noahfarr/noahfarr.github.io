@@ -42,10 +42,6 @@ Suppose a coding assistant is trying to fix a failing test.
 .blm-interaction figcaption { margin-top: .8rem; font-size: .87rem; line-height: 1.55; color: var(--global-text-color-light); }
 @media (max-width: 700px) { .blm-interaction .blm-events { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 380px) { .blm-interaction .blm-events { grid-template-columns: 1fr; } }
-.blm-results { margin: 2rem 0; }
-.blm-results .blm-plot { overflow-x: auto; }
-.blm-results img { display: block; width: 100%; min-width: 620px; height: auto; }
-.blm-results figcaption { margin-top: .8rem; font-size: .87rem; line-height: 1.55; color: var(--global-text-color-light); }
 </style>
 <div class="blm-events">
   <div class="blm-event"><span class="blm-role">1. User</span><p>Fix the failing test.</p><span class="blm-kind">Observation</span></div>
@@ -196,15 +192,115 @@ fixed. CLM predicts all valid next tokens. BLM predicts only the assistant's
 outputs. Both models read the observations. Each loss is averaged over the tokens
 it scores.
 
-I evaluated both models on the same held-out assistant tokens. The plots show
-their average negative log probability, or action NLL, so lower is better. The
-first plot uses an estimated FLOP budget for the horizontal axis.
+I evaluated both models on the same held-out assistant tokens. The plot shows
+their average negative log probability, or action NLL, so lower is better. Its
+horizontal axis is an estimated FLOP budget.
 
-<figure class="blm-results">
-<div class="blm-plot" tabindex="0" role="region" aria-label="Learning curves against estimated compute">
-<img src="{{ '/assets/img/blm/agent-trove-compute.png' | relative_url }}" alt="Late-training action NLL against relative estimated FLOPs for 82M, 191M, and 504M models. BLM is lower at 82M and 191M. CLM is slightly lower at 504M." width="1320" height="588" loading="lazy">
-</div>
-<figcaption>Late-training detail, with the x-axis starting at half the final estimated compute budget. Blue dashed lines are CLM and red solid lines are BLM. Each panel uses its own CLM final budget as one unit of compute. All runs shown use seed 42. The bands are 95% bootstrap intervals over the same 512 validation trajectories, not variation across training seeds.</figcaption>
+<figure class="blm-chart" aria-label="Learning curves against estimated compute">
+<style>
+.blm-chart { --clm: #2a78d6; --blm: #eb6834; margin: 2rem 0; color: var(--global-text-color); }
+html[data-theme="dark"] .blm-chart { --clm: #3987e5; --blm: #d95926; }
+@media (prefers-color-scheme: dark) { html:not([data-theme="light"]) .blm-chart { --clm: #3987e5; --blm: #d95926; } }
+.blm-chart .blm-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem 1.2rem; font-size: .85rem; margin-bottom: .4rem; }
+.blm-chart .blm-ytitle { color: var(--global-text-color-light); }
+.blm-chart .blm-legend { display: flex; gap: 1.1rem; }
+.blm-chart .blm-key { display: inline-flex; align-items: center; gap: .4rem; }
+.blm-chart .blm-key svg { width: 26px; height: 8px; }
+.blm-chart .blm-panels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
+@media (max-width: 640px) { .blm-chart .blm-panels { grid-template-columns: 1fr; max-width: 340px; margin: 0 auto; } }
+.blm-chart .blm-panel { position: relative; outline: none; border-radius: 4px; }
+.blm-chart .blm-panel:focus-visible { box-shadow: 0 0 0 2px var(--global-theme-color); }
+.blm-chart .blm-panel-title { text-align: center; font-weight: 600; font-size: .9rem; }
+.blm-chart svg { display: block; width: 100%; height: auto; overflow: visible; font-family: inherit; }
+.blm-chart .grid { stroke: var(--global-divider-color); stroke-width: 1; }
+.blm-chart .axis { stroke: var(--global-text-color-light); stroke-width: 1; }
+.blm-chart .tick { fill: var(--global-text-color-light); font-size: 11px; }
+.blm-chart .axis-title { fill: var(--global-text-color-light); font-size: 11px; }
+.blm-chart .end-label { fill: var(--global-text-color); font-size: 11px; font-weight: 600; }
+.blm-chart .band { stroke: none; opacity: .16; }
+.blm-chart .band.clm { fill: var(--clm); }
+.blm-chart .band.blm { fill: var(--blm); }
+.blm-chart .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.blm-chart .line.clm { stroke: var(--clm); stroke-dasharray: 5 4; }
+.blm-chart .line.blm { stroke: var(--blm); }
+.blm-chart .crosshair { stroke: var(--global-text-color-light); stroke-width: 1; opacity: 0; }
+.blm-chart .dot { opacity: 0; stroke: var(--global-bg-color); stroke-width: 2; }
+.blm-chart .dot.clm { fill: var(--clm); }
+.blm-chart .dot.blm { fill: var(--blm); }
+.blm-chart .active .crosshair, .blm-chart .active .dot { opacity: 1; }
+.blm-chart .hit { fill: transparent; cursor: crosshair; }
+.blm-chart .blm-tip { position: absolute; top: 1.6rem; pointer-events: none; background: var(--global-bg-color); border: 1px solid var(--global-divider-color); border-radius: 6px; padding: .35rem .5rem; font-size: .75rem; line-height: 1.45; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.12); z-index: 2; }
+.blm-chart .blm-tip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: .35rem; }
+.blm-chart figcaption { margin-top: .8rem; font-size: .87rem; line-height: 1.55; color: var(--global-text-color-light); }
+.blm-chart details { margin-top: .6rem; font-size: .85rem; }
+.blm-chart details table { width: 100%; font-size: .8rem; margin-top: .4rem; }
+.blm-chart details td, .blm-chart details th { padding: .15rem .4rem; text-align: right; }
+.blm-chart details td:first-child, .blm-chart details th:first-child { text-align: left; }
+</style>
+<div class="blm-head"><span class="blm-ytitle">Held-out action NLL, lower is better</span><div class="blm-legend"><span class="blm-key"><svg viewBox="0 0 26 8"><line x1="1" x2="25" y1="4" y2="4" stroke="var(--clm)" stroke-width="2" stroke-dasharray="5 4"/></svg>CLM</span><span class="blm-key"><svg viewBox="0 0 26 8"><line x1="1" x2="25" y1="4" y2="4" stroke="var(--blm)" stroke-width="2"/></svg>BLM</span></div></div>
+<div class="blm-panels"><div class="blm-panel" tabindex="0" data-points='[[0.5, 1.6606, 1.599, 1.728, 1.5347, 1.476, 1.597, 0.5012], [0.5625, 1.61, 1.549, 1.675, 1.4962, 1.439, 1.559, 0.5632], [0.625, 1.5728, 1.511, 1.636, 1.455, 1.399, 1.515, 0.6253], [0.6875, 1.5427, 1.484, 1.605, 1.418, 1.363, 1.478, 0.6897], [0.75, 1.515, 1.457, 1.577, 1.3914, 1.336, 1.45, 0.7518], [0.8125, 1.4941, 1.437, 1.555, 1.3689, 1.314, 1.427, 0.8138], [0.875, 1.4801, 1.423, 1.541, 1.3554, 1.301, 1.413, 0.8759], [0.9375, 1.4738, 1.417, 1.535, 1.3484, 1.294, 1.406, 0.9379], [1.0, 1.4726, 1.415, 1.533, 1.3469, 1.293, 1.404, 1.0]]' data-geometry='{"ml": 34, "pw": 192, "mt": 10, "ph": 160, "w": 260, "h": 210, "y0": 1.05, "y1": 1.85, "late": 0.5}' data-size="82M"><div class="blm-panel-title">82M</div><svg viewBox="0 0 260 210" role="img" aria-label="82M: held-out action NLL against relative training FLOPs for CLM and BLM"><line class="grid" x1="34" x2="226" y1="140.0" y2="140.0"/><text class="tick" x="28" y="143.5" text-anchor="end">1.2</text><line class="grid" x1="34" x2="226" y1="100.0" y2="100.0"/><text class="tick" x="28" y="103.5" text-anchor="end">1.4</text><line class="grid" x1="34" x2="226" y1="60.0" y2="60.0"/><text class="tick" x="28" y="63.5" text-anchor="end">1.6</text><line class="grid" x1="34" x2="226" y1="20.0" y2="20.0"/><text class="tick" x="28" y="23.5" text-anchor="end">1.8</text><line class="axis" x1="34" x2="226" y1="170" y2="170"/><text class="tick" x="34.0" y="185" text-anchor="middle">0.5</text><text class="tick" x="130.0" y="185" text-anchor="middle">0.75</text><text class="tick" x="226.0" y="185" text-anchor="middle">1</text><text class="axis-title" x="130.0" y="204" text-anchor="middle">Relative training FLOPs</text><path class="band clm" d="M34.0,34.4 L58.0,45.0 L82.0,52.8 L106.0,59.0 L130.0,64.6 L154.0,69.0 L178.0,71.8 L202.0,73.0 L226.0,73.3 L226.0,96.9 L202.0,96.7 L178.0,95.4 L154.0,92.6 L130.0,88.6 L106.0,83.3 L82.0,77.7 L58.0,70.1 L34.0,60.1 Z"/><path class="band blm" d="M34.5,60.5 L58.3,68.1 L82.1,76.9 L106.9,84.4 L130.7,90.0 L154.5,94.7 L178.3,97.4 L202.2,98.9 L226.0,99.2 L226.0,121.5 L202.2,121.2 L178.3,119.8 L154.5,117.1 L130.7,112.8 L106.9,107.4 L82.1,100.2 L58.3,92.3 L34.5,84.8 Z"/><path class="line clm" d="M34.0,47.9 L58.0,58.0 L82.0,65.4 L106.0,71.5 L130.0,77.0 L154.0,81.2 L178.0,84.0 L202.0,85.2 L226.0,85.5"/><path class="line blm" d="M34.5,73.1 L58.3,80.8 L82.1,89.0 L106.9,96.4 L130.7,101.7 L154.5,106.2 L178.3,108.9 L202.2,110.3 L226.0,110.6"/><text class="end-label" x="231" y="89.0">CLM</text><text class="end-label" x="231" y="114.1">BLM</text><line class="crosshair" x1="0" x2="0" y1="10" y2="170"/><circle class="dot clm" r="4"/><circle class="dot blm" r="4"/><rect class="hit" x="34" y="10" width="192" height="160"/></svg><div class="blm-tip" hidden></div></div><div class="blm-panel" tabindex="0" data-points='[[0.5, 1.3934, 1.338, 1.454, 1.3299, 1.276, 1.387, 0.5013], [0.5625, 1.3542, 1.3, 1.413, 1.2824, 1.23, 1.337, 0.563], [0.625, 1.3111, 1.258, 1.369, 1.2427, 1.191, 1.298, 0.6272], [0.6875, 1.2729, 1.221, 1.329, 1.2016, 1.151, 1.255, 0.6889], [0.75, 1.2432, 1.192, 1.299, 1.1695, 1.12, 1.223, 0.7506], [0.8125, 1.2178, 1.167, 1.273, 1.1423, 1.094, 1.194, 0.8149], [0.875, 1.2019, 1.151, 1.257, 1.1258, 1.078, 1.177, 0.8766], [0.9375, 1.1933, 1.143, 1.248, 1.1179, 1.07, 1.17, 0.9383], [1.0, 1.1917, 1.141, 1.246, 1.1161, 1.068, 1.168, 1.0]]' data-geometry='{"ml": 34, "pw": 192, "mt": 10, "ph": 160, "w": 260, "h": 210, "y0": 1.05, "y1": 1.85, "late": 0.5}' data-size="191M"><div class="blm-panel-title">191M</div><svg viewBox="0 0 260 210" role="img" aria-label="191M: held-out action NLL against relative training FLOPs for CLM and BLM"><line class="grid" x1="34" x2="226" y1="140.0" y2="140.0"/><text class="tick" x="28" y="143.5" text-anchor="end">1.2</text><line class="grid" x1="34" x2="226" y1="100.0" y2="100.0"/><text class="tick" x="28" y="103.5" text-anchor="end">1.4</text><line class="grid" x1="34" x2="226" y1="60.0" y2="60.0"/><text class="tick" x="28" y="63.5" text-anchor="end">1.6</text><line class="grid" x1="34" x2="226" y1="20.0" y2="20.0"/><text class="tick" x="28" y="23.5" text-anchor="end">1.8</text><line class="axis" x1="34" x2="226" y1="170" y2="170"/><text class="tick" x="34.0" y="185" text-anchor="middle">0.5</text><text class="tick" x="130.0" y="185" text-anchor="middle">0.75</text><text class="tick" x="226.0" y="185" text-anchor="middle">1</text><text class="axis-title" x="130.0" y="204" text-anchor="middle">Relative training FLOPs</text><path class="band clm" d="M34.0,89.3 L58.0,97.5 L82.0,106.2 L106.0,114.2 L130.0,120.2 L154.0,125.4 L178.0,128.6 L202.0,130.4 L226.0,130.7 L226.0,151.7 L202.0,151.4 L178.0,149.8 L154.0,146.7 L130.0,141.7 L106.0,135.9 L82.0,128.4 L58.0,120.0 L34.0,112.5 Z"/><path class="band blm" d="M34.5,102.6 L58.2,112.6 L82.9,120.5 L106.6,129.0 L130.2,135.4 L154.9,141.1 L178.6,144.6 L202.3,146.1 L226.0,146.5 L226.0,166.4 L202.3,166.0 L178.6,164.5 L154.9,161.3 L130.2,156.0 L106.6,149.7 L82.9,141.8 L58.2,134.0 L34.5,124.8 Z"/><path class="line clm" d="M34.0,101.3 L58.0,109.2 L82.0,117.8 L106.0,125.4 L130.0,131.4 L154.0,136.4 L178.0,139.6 L202.0,141.3 L226.0,141.7"/><path class="line blm" d="M34.5,114.0 L58.2,123.5 L82.9,131.5 L106.6,139.7 L130.2,146.1 L154.9,151.5 L178.6,154.8 L202.3,156.4 L226.0,156.8"/><text class="end-label" x="231" y="145.2">CLM</text><text class="end-label" x="231" y="160.3">BLM</text><line class="crosshair" x1="0" x2="0" y1="10" y2="170"/><circle class="dot clm" r="4"/><circle class="dot blm" r="4"/><rect class="hit" x="34" y="10" width="192" height="160"/></svg><div class="blm-tip" hidden></div></div><div class="blm-panel" tabindex="0" data-points='[[0.5, 1.6168, 1.556, 1.683, 1.6423, 1.58, 1.711, 0.5034], [0.5656, 1.5316, 1.472, 1.597, 1.5561, 1.497, 1.621, 0.5646], [0.6311, 1.4676, 1.411, 1.529, 1.4949, 1.437, 1.558, 0.6259], [0.6885, 1.4258, 1.37, 1.485, 1.4381, 1.381, 1.499, 0.6939], [0.7541, 1.3833, 1.328, 1.443, 1.4009, 1.345, 1.462, 0.7551], [0.8197, 1.3563, 1.301, 1.416, 1.3708, 1.315, 1.432, 0.8163], [0.877, 1.3403, 1.286, 1.399, 1.3519, 1.297, 1.412, 0.8776], [0.9426, 1.3316, 1.277, 1.39, 1.3433, 1.289, 1.403, 0.9388], [1.0, 1.3304, 1.276, 1.389, 1.3417, 1.287, 1.402, 1.0]]' data-geometry='{"ml": 34, "pw": 192, "mt": 10, "ph": 160, "w": 260, "h": 210, "y0": 1.05, "y1": 1.85, "late": 0.5}' data-size="504M"><div class="blm-panel-title">504M</div><svg viewBox="0 0 260 210" role="img" aria-label="504M: held-out action NLL against relative training FLOPs for CLM and BLM"><line class="grid" x1="34" x2="226" y1="140.0" y2="140.0"/><text class="tick" x="28" y="143.5" text-anchor="end">1.2</text><line class="grid" x1="34" x2="226" y1="100.0" y2="100.0"/><text class="tick" x="28" y="103.5" text-anchor="end">1.4</text><line class="grid" x1="34" x2="226" y1="60.0" y2="60.0"/><text class="tick" x="28" y="63.5" text-anchor="end">1.6</text><line class="grid" x1="34" x2="226" y1="20.0" y2="20.0"/><text class="tick" x="28" y="23.5" text-anchor="end">1.8</text><line class="axis" x1="34" x2="226" y1="170" y2="170"/><text class="tick" x="34.0" y="185" text-anchor="middle">0.5</text><text class="tick" x="130.0" y="185" text-anchor="middle">0.75</text><text class="tick" x="226.0" y="185" text-anchor="middle">1</text><text class="axis-title" x="130.0" y="204" text-anchor="middle">Relative training FLOPs</text><path class="band clm" d="M34.0,43.4 L59.2,60.7 L84.4,74.3 L106.4,82.9 L131.6,91.4 L156.8,96.8 L178.8,100.1 L204.0,101.9 L226.0,102.2 L226.0,124.8 L204.0,124.6 L178.8,122.9 L156.8,119.8 L131.6,114.4 L106.4,106.0 L84.4,97.8 L59.2,85.5 L34.0,68.9 Z"/><path class="band blm" d="M35.3,37.8 L58.8,55.8 L82.3,68.5 L108.4,80.1 L132.0,87.6 L155.5,93.7 L179.0,97.5 L202.5,99.3 L226.0,99.7 L226.0,122.6 L202.5,122.3 L179.0,120.6 L155.5,117.0 L132.0,111.0 L108.4,103.8 L82.3,92.5 L58.8,80.6 L35.3,64.0 Z"/><path class="line clm" d="M34.0,56.6 L59.2,73.7 L84.4,86.5 L106.4,94.8 L131.6,103.3 L156.8,108.7 L178.8,111.9 L204.0,113.7 L226.0,113.9"/><path class="line blm" d="M35.3,51.5 L58.8,68.8 L82.3,81.0 L108.4,92.4 L132.0,99.8 L155.5,105.8 L179.0,109.6 L202.5,111.3 L226.0,111.7"/><line class="crosshair" x1="0" x2="0" y1="10" y2="170"/><circle class="dot clm" r="4"/><circle class="dot blm" r="4"/><rect class="hit" x="34" y="10" width="192" height="160"/></svg><div class="blm-tip" hidden></div></div></div>
+<figcaption>Late training, from half of each size's final estimated compute budget. Each panel uses its own CLM final budget as one unit of compute, and the y-axis is shared. All runs use seed 42. The bands are 95% bootstrap intervals over the same 512 validation trajectories, not variation across training seeds. Hover or focus a panel and use the arrow keys to read values.</figcaption>
+<details><summary>Show the data</summary><table><thead><tr><th>Size</th><th>Relative FLOPs (CLM / BLM)</th><th>CLM NLL [95% CI]</th><th>BLM NLL [95% CI]</th></tr></thead><tbody><tr><td>82M</td><td>0.500 / 0.501</td><td>1.661 [1.599, 1.728]</td><td>1.535 [1.476, 1.597]</td></tr><tr><td>82M</td><td>0.562 / 0.563</td><td>1.610 [1.549, 1.675]</td><td>1.496 [1.439, 1.559]</td></tr><tr><td>82M</td><td>0.625 / 0.625</td><td>1.573 [1.511, 1.636]</td><td>1.455 [1.399, 1.515]</td></tr><tr><td>82M</td><td>0.688 / 0.690</td><td>1.543 [1.484, 1.605]</td><td>1.418 [1.363, 1.478]</td></tr><tr><td>82M</td><td>0.750 / 0.752</td><td>1.515 [1.457, 1.577]</td><td>1.391 [1.336, 1.450]</td></tr><tr><td>82M</td><td>0.812 / 0.814</td><td>1.494 [1.437, 1.555]</td><td>1.369 [1.314, 1.427]</td></tr><tr><td>82M</td><td>0.875 / 0.876</td><td>1.480 [1.423, 1.541]</td><td>1.355 [1.301, 1.413]</td></tr><tr><td>82M</td><td>0.938 / 0.938</td><td>1.474 [1.417, 1.535]</td><td>1.348 [1.294, 1.406]</td></tr><tr><td>82M</td><td>1.000 / 1.000</td><td>1.473 [1.415, 1.533]</td><td>1.347 [1.293, 1.404]</td></tr><tr><td>191M</td><td>0.500 / 0.501</td><td>1.393 [1.338, 1.454]</td><td>1.330 [1.276, 1.387]</td></tr><tr><td>191M</td><td>0.562 / 0.563</td><td>1.354 [1.300, 1.413]</td><td>1.282 [1.230, 1.337]</td></tr><tr><td>191M</td><td>0.625 / 0.627</td><td>1.311 [1.258, 1.369]</td><td>1.243 [1.191, 1.298]</td></tr><tr><td>191M</td><td>0.688 / 0.689</td><td>1.273 [1.221, 1.329]</td><td>1.202 [1.151, 1.255]</td></tr><tr><td>191M</td><td>0.750 / 0.751</td><td>1.243 [1.192, 1.299]</td><td>1.169 [1.120, 1.223]</td></tr><tr><td>191M</td><td>0.812 / 0.815</td><td>1.218 [1.167, 1.273]</td><td>1.142 [1.094, 1.194]</td></tr><tr><td>191M</td><td>0.875 / 0.877</td><td>1.202 [1.151, 1.257]</td><td>1.126 [1.078, 1.177]</td></tr><tr><td>191M</td><td>0.938 / 0.938</td><td>1.193 [1.143, 1.248]</td><td>1.118 [1.070, 1.170]</td></tr><tr><td>191M</td><td>1.000 / 1.000</td><td>1.192 [1.141, 1.246]</td><td>1.116 [1.068, 1.168]</td></tr><tr><td>504M</td><td>0.500 / 0.503</td><td>1.617 [1.556, 1.683]</td><td>1.642 [1.580, 1.711]</td></tr><tr><td>504M</td><td>0.566 / 0.565</td><td>1.532 [1.472, 1.597]</td><td>1.556 [1.497, 1.621]</td></tr><tr><td>504M</td><td>0.631 / 0.626</td><td>1.468 [1.411, 1.529]</td><td>1.495 [1.437, 1.558]</td></tr><tr><td>504M</td><td>0.689 / 0.694</td><td>1.426 [1.370, 1.485]</td><td>1.438 [1.381, 1.499]</td></tr><tr><td>504M</td><td>0.754 / 0.755</td><td>1.383 [1.328, 1.443]</td><td>1.401 [1.345, 1.462]</td></tr><tr><td>504M</td><td>0.820 / 0.816</td><td>1.356 [1.301, 1.416]</td><td>1.371 [1.315, 1.432]</td></tr><tr><td>504M</td><td>0.877 / 0.878</td><td>1.340 [1.286, 1.399]</td><td>1.352 [1.297, 1.412]</td></tr><tr><td>504M</td><td>0.943 / 0.939</td><td>1.332 [1.277, 1.390]</td><td>1.343 [1.289, 1.403]</td></tr><tr><td>504M</td><td>1.000 / 1.000</td><td>1.330 [1.276, 1.389]</td><td>1.342 [1.287, 1.402]</td></tr></tbody></table></details>
+<script>
+(function () {
+  document.querySelectorAll(".blm-chart .blm-panel").forEach(function (panel) {
+    var pts = JSON.parse(panel.dataset.points);
+    var g = JSON.parse(panel.dataset.geometry);
+    var svg = panel.querySelector("svg");
+    var hair = svg.querySelector(".crosshair");
+    var dots = { clm: svg.querySelector(".dot.clm"), blm: svg.querySelector(".dot.blm") };
+    var tip = panel.querySelector(".blm-tip");
+    var index = pts.length - 1;
+    function sx(x) { return g.ml + (x - g.late) / (1 - g.late) * g.pw; }
+    function sy(y) { return g.mt + (g.y1 - y) / (g.y1 - g.y0) * g.ph; }
+    function row(name, cls, v, lo, hi) {
+      var line = document.createElement("div");
+      var sw = document.createElement("span");
+      sw.className = "sw";
+      sw.style.background = "var(--" + cls + ")";
+      line.appendChild(sw);
+      line.appendChild(document.createTextNode(name + " " + v.toFixed(3) + " [" + lo.toFixed(2) + ", " + hi.toFixed(2) + "]"));
+      return line;
+    }
+    function show(i) {
+      index = i;
+      var p = pts[i], x = sx(p[0]);
+      hair.setAttribute("x1", x); hair.setAttribute("x2", x);
+      dots.clm.setAttribute("cx", x); dots.clm.setAttribute("cy", sy(p[1]));
+      dots.blm.setAttribute("cx", sx(p[7])); dots.blm.setAttribute("cy", sy(p[4]));
+      tip.replaceChildren();
+      var head = document.createElement("div");
+      head.style.fontWeight = "600";
+      head.textContent = panel.dataset.size + " at " + p[0].toFixed(2) + "\u00d7 compute";
+      tip.appendChild(head);
+      tip.appendChild(row("CLM", "clm", p[1], p[2], p[3]));
+      tip.appendChild(row("BLM", "blm", p[4], p[5], p[6]));
+      tip.hidden = false;
+      panel.classList.add("active");
+      var scale = svg.getBoundingClientRect().width / g.w;
+      var left = x * scale + 10;
+      if (left + tip.offsetWidth > panel.clientWidth) left = x * scale - tip.offsetWidth - 10;
+      tip.style.left = Math.max(0, left) + "px";
+    }
+    function hide() { tip.hidden = true; panel.classList.remove("active"); }
+    function nearest(evt) {
+      var r = svg.getBoundingClientRect();
+      var x = (evt.clientX - r.left) / r.width * g.w;
+      var best = 0;
+      pts.forEach(function (p, i) { if (Math.abs(sx(p[0]) - x) < Math.abs(sx(pts[best][0]) - x)) best = i; });
+      return best;
+    }
+    svg.addEventListener("pointermove", function (e) { show(nearest(e)); });
+    svg.addEventListener("pointerleave", hide);
+    panel.addEventListener("focus", function () { show(index); });
+    panel.addEventListener("blur", hide);
+    panel.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft") { show(Math.max(0, index - 1)); e.preventDefault(); }
+      if (e.key === "ArrowRight") { show(Math.min(pts.length - 1, index + 1)); e.preventDefault(); }
+    });
+  });
+})();
+</script>
 </figure>
 
 BLM finishes with lower action NLL in the 82M and 191M runs. At 504M, CLM finishes
@@ -217,17 +313,8 @@ estimate to set the budgets, so the BLM runs process more training positions.
 The implementation still computes dense outputs. The lower estimated cost is
 not a measured runtime saving.
 
-We can look at the same measurements against training positions instead.
-
-<figure class="blm-results">
-<div class="blm-plot" tabindex="0" role="region" aria-label="Learning curves against allocated training positions">
-<img src="{{ '/assets/img/blm/agent-trove-positions.png' | relative_url }}" alt="The same action-NLL curves against allocated training positions. CLM learns faster early at equal positions. The lower row zooms in on NLL." width="1320" height="960" loading="lazy">
-</div>
-<figcaption>The same runs and validation trajectories plotted against allocated training positions, including padding. The lower row zooms in on the loss. Positions are not counts of action targets or non-padding tokens. The BLM runs extend farther because their budgets were set using the estimated compute accounting.</figcaption>
-</figure>
-
-At equal positions, CLM is ahead early in training. The smaller BLM models reach
-a lower final loss after more training positions. That is a different comparison
+Counted in training positions instead, CLM is ahead early in training, and the
+smaller BLM models reach their lower final loss only after more positions. That is a different comparison
 from holding data exposure fixed. Intermediate checkpoints also come from runs
 with different schedule horizons, so they are not separate shorter-budget runs.
 
