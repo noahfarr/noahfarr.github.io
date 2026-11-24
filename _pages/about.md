@@ -2,7 +2,7 @@
 layout: about
 title: about
 permalink: /
-subtitle: Master Student. Artificial Intelligence & Machine Learning. TU Darmstadt.
+subtitle: Master's Student. Artificial Intelligence & Machine Learning. TU Darmstadt.
 
 profile:
   align: right
@@ -19,4 +19,6 @@ I am a second-year Master's student in Artificial Intelligence and Machine Learn
 
 ## Research Interests
 
-My research interests center on a central question: how do you train a reinforcement learning agent that can pursue any goal in a complex, open-ended environment, without hand-designed rewards, curricula, or task-specific engineering?
+My research asks how reinforcement learning can bootstrap itself into increasingly general intelligence. Humans did not inherit language, mathematics, or science. We discovered them through experience, and I want to build agents that become general in the same way, learning from their own experience rather than from human-generated data. I study this in rich artificial worlds, where simple objectives and other agents provide the challenge and each capability can open up the next.
+
+In particular, I am interested in what lets agents keep acquiring and reusing knowledge over long periods of learning, how agents can learn efficiently when experience is as scarce as in the real world, and whether experience from rich worlds can replace human data as a foundation for further learning.
